@@ -96,14 +96,17 @@ def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_j
     for thickness, lab_curve in thickness_curve.items():
         Y.append(thickness_curve[thickness])
     X = list(thickness_curve.keys())
-    X = [i.split(',')[:-1] for i in X]
+    X = [i[:-1] for i in X]
+    X = [i.split(',') for i in X]
     X = [[float(i) for i in a] for a in X]
+    X = np.array(X)
+
     # 手动调整某基层膜厚的值,看看曲线在哪些频段会产生很大变化否?
     # X = [[i[0],i[1],i[2]*1.5,i[3]*1.5,i[4]*2,i[5]*2,i[6]] for i in X]
     Y = [[float(i) for i in a] for a in Y]
-    X = np.array(X)
+
     Y = np.array(Y)
-    # print(X.shape, Y.shape)
+    print(X.shape, Y.shape)
     return X, Y
 
 
@@ -152,7 +155,7 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, epochs, be
                 score = model(input)
                 loss = compute_loss(score, target)
                 # print(metrics.mean_squared_error(score.detach().numpy(), target.detach().numpy()))
-                print('-' * 10, 'epoch {} loss: {}'.format(epoch, loss), '-' * 10)
+                # print('-' * 10, 'epoch {} loss: {}'.format(epoch, loss), '-' * 10)
                 loss.backward()
                 optimizer.step()
                 train_loss += loss.item()
@@ -269,7 +272,7 @@ if __name__ == "__main__":
                          evt_33number, base_data_dir)
     hiden_dim = 50
     epochs_train = 1000
-    epochs_finetune = 109  # 调整膜厚值
+    epochs_finetune = 442  # 调整膜厚值
     input_dim = X.shape[-1]
     output_dim = Y.shape[-1]
     batch_size = X.shape[0]
@@ -281,7 +284,7 @@ if __name__ == "__main__":
     train_dataloader = DataLoader((train_x, train_y), batch_size=batch_size, batch_first=False, device=device)
     val_dataloader = DataLoader((X, Y), batch_size=batch_size, batch_first=False, device=device)
     model = MLP(input_dim, hiden_dim, output_dim).to(device)
-    # print(model)
+    print(model)
     optimizer_train = optimizers.Adam(model.parameters(),
                                       lr=0.001,
                                       betas=(0.9, 0.999), amsgrad=True)

@@ -1,3 +1,4 @@
+'''
 # thickness列统计
 f = open(r"D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\title.txt", 'r')
 line = f.readlines()[0]
@@ -82,7 +83,7 @@ print(len(feat_names))
 
 
 # 0624 check_data.py
-'''
+
 # step3.
 miss_ = open(r"D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\miss_thickness.txt", 'w')
 evt_thickness_val = r"D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\evt_thickness_val.json"
@@ -113,9 +114,6 @@ with open(js, encoding="utf-8") as reader:
     #         print(process)
     #         print(value)
 
-'''
-
-
 def tffresh():
     def fun(f):
         return f
@@ -131,3 +129,12 @@ def tffresh():
     # 写一个剔除无效数据列的函数: 方差为0, 空数据列
     f = fun(f)
     extracted_features = extract_features(f, column_id="id", column_sort="time")
+'''
+
+
+import json
+f = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\refine_thickness_lab_curve.json'
+with open(f, encoding="utf-8") as reader:
+    dict_ = json.load(reader)
+    for k, v in dict_.items():
+        print(k)

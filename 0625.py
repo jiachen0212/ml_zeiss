@@ -46,8 +46,8 @@ for num33, evt_list in number33_evts.items():
             # if thickness1 != thickness2:
             f.write(num33 + ',')
             f.write(evt1.split('\\')[-1] + ',' + evt2.split('\\')[-1] + ',')
-            f.write(''.join(str(i) for i in thickness1) + ',')
-            f.write(''.join(str(i) for i in thickness2) + '\n')
+            f.write(''.join(str(i) + ' ' for i in thickness1) + ',')
+            f.write(''.join(str(i) + ' ' for i in thickness2) + '\n')
             evt_cc.append(evt1.split('\\')[-1])
 # cc_dir 背面数据对应维evt1
 # print(len(evt_cc))

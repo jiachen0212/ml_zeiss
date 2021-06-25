@@ -2,7 +2,7 @@
 import json
 import os
 import shutil
-
+import random
 import xlrd
 
 
@@ -266,14 +266,33 @@ def check_data(thickness_lab_curve, evt_dict, bad_thick_lab):
             f.write('\n')
 
 
-# refine_data 0624 chenjia
-def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness, face):
+def evt_pair_thick(evt_name, lines):
     '''
+    :param  two_face_thick: 正背面_thickness_evtname.txt文件由0625.py生成.函数后续再整合进来,这里用txt结果先
+    0625.py中, 只读取正背面均有evt文件的膜厚数据, 后续可以扩充功能, 只有一面膜厚数据的话,另一面就直接copy这组膜厚值即可.
+
+    :return:
+    '''
+    for line in lines:
+        evt1, thick2, thick1 = line[:-1].split(',')[1], line[:-1].split(',')[4], line[:-1].split(',')[3]
+        if evt_name == evt1:
+            return ''.join(str(i)+',' for i in thick2.split(' '))[:-1], thick1.split(' ')
+
+    return [], []
+
+
+# refine_data 0624 chenjia
+# add 正背面膜厚值 0625 chenjia
+def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness, face, concate=False):
+    '''
+    :param concate or mean True/False
     :param process_data: 工艺记录.xlsx
     :param one_evt_thickness: evt_name: thickness
     :param refine_data_json: finall_thick_lab的落盘json名
 
     '''
+    num33_evt1_evt2_thick1_thick2 = open(r'D:\work\project\卡尔蔡司AR镀膜\ML_ZEISS\正背面_thickness_evtname.txt', 'r')
+    lines = num33_evt1_evt2_thick1_thick2.readlines()
     wb = xlrd.open_workbook(process_data)
     data = wb.sheet_by_name('Sheet1')
     rows = data.nrows
@@ -290,13 +309,35 @@ def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness
     for thickness, list_ in bad_thick_lab.items():
         # time_index = []
         for single_list in list_:
-            # single_list：[evt_name, [lab_curv], 33number]
+            # single_list：[EVT21050425, [lab_curv], 33number]
             if single_list[-1] in number_time:
                 # time_index.append(number_time[single_list[-1]])
                 # the_number_33 = time_number[min(time_index)]  # 电枪数被使用最少的那个33编号文件 会导致有些33121052004在bad_thick_lab中找不到...
-                finall_thick_lab[thickness] = single_list[1]
                 oneone_evt_thickness[single_list[0]] = thickness  # evtname:thickness
+
+                # 在这里穿插,根据evtname, 找到当前evt的对应正面,并获取膜厚设置值
+                pair_thick, thick1 = evt_pair_thick(single_list[0]+'.CSV', lines)  # str, list
+                if pair_thick and thick1 == thickness.split(','):
+                    if not concate:
+                        # 取mean, 保留7层维度
+                        th1 = thickness.split(',')[:-1]
+                        th2 = pair_thick.split(',')[:-1]
+                        len_ = len(th1)
+                        final = [(float(th1[i]) + float(th2[i]))/2+random.uniform(1e-4,5e-5) for i in range(len_)]
+                        final = ''.join(str(i) + ',' for i in final)
+                        finall_thick_lab[final] = single_list[1]
+                    else:
+                        # 正背concate
+                        finall_thick_lab[thickness+pair_thick] = single_list[1]
+                else:
+                    if not concate:
+                        # print(pair_thick, thick1, thickness, single_list[0]+'.CSV')   # 部分背面evt找不到正面的evt,没事那就copy一份膜值.
+                        finall_thick_lab[thickness] = single_list[1]
+                    else:  # concate
+                        finall_thick_lab[thickness+thickness[:-1]] = single_list[1]    # 正背concate
+
                 break  # 找到一个33number了,就不再遍历list_, break出循环
+    # mean处理正背面的膜厚时, 可能出现key值重复,覆盖更新了value,故而导致finall_thick_lab 和 oneone_evt_thickness 长度不等
     assert len(finall_thick_lab) == len(oneone_evt_thickness)  # len需要一致!
 
     data = json.dumps(finall_thick_lab)
