@@ -5,6 +5,7 @@ import shutil
 
 import numpy as np
 import pandas as pd
+import tsfresh
 
 '''
 peak峰值个数,峰值
@@ -81,20 +82,9 @@ def get_sub_title(dir_):
 
 
 def tffresh():
-    def fun(f):
-        return f
-
-        # test3. tsfresh
-        # https://github.com/blue-yonder/tsfresh
-        # https://tsfresh.readthedocs.io/en/latest/text/quick_start.html
-
-    from tsfresh import extract_features
-
-    file = r"D:\work\project\卡尔蔡司AR镀膜\文档s\cj.csv"
-    f = pd.read_csv(file, encoding="utf-8")
-    # 写一个剔除无效数据列的函数: 方差为0, 空数据列
-    f = fun(f)
-    extracted_features = extract_features(f, column_id="id", column_sort="time")
+    x = [1, 2, 3, 4]
+    a = tsfresh.feature_extraction.feature_calculators.abs_energy(x)
+    print(a)
 
 
 def get_thickness(csv_dir, files):
@@ -340,11 +330,15 @@ if __name__ == "__main__":
         get_thick_sensor(evt_thickness, thickness_sensor_file, file_sensor_dict)
 
     # step4.
-    thick_lab_file = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\refine_thickness_lab_curve.json'
-    thick_lab = open(thick_lab_file, 'r')
-    thick_lab_dict = json.load(thick_lab)
-    thick_sensor_dict = json.load(open(thickness_sensor_file, 'r'))
-    assert len(thick_sensor_dict) == len(thick_lab_dict)
-    for thick, sensor in thick_sensor_dict.items():
-        # sensor is a dict: sensor[sensor_name]=sensor_value
-        tffresh()
+    # thickness-sensor
+    # thickness-lab
+    # thick_lab_file = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\refine_thickness_lab_curve.json'
+    # thick_lab = open(thick_lab_file, 'r')
+    # thick_lab_dict = json.load(thick_lab)
+    # thick_sensor_dict = json.load(open(thickness_sensor_file, 'r'))
+    # assert len(thick_sensor_dict) == len(thick_lab_dict)
+    # for thick, sensor in thick_sensor_dict.items():
+    #     # sensor is a dict: sensor[sensor_name]=sensor_value
+    #     for sensor_name, sensor_value in sensor.items():
+    #         # tffresh(sensor_value)
+    tffresh()

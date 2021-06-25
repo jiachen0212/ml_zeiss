@@ -82,11 +82,11 @@ def plot_loss(loss):
 
 
 def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                  evt_33number):
+                  evt_33number, base_data_dir):
     # load json data
     if not os.path.exists(refine_data_json):
         data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                          evt_33number).run()
+                          evt_33number, base_data_dir).run()
         print("data process done!")
     else:
         print("data has already processed! start mlp！！!")
@@ -263,9 +263,10 @@ if __name__ == "__main__":
     refine_data_json = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\refine_thickness_lab_curve.json'
     oneone_evt_thickness = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\oneone_evt_thickness.json'
     evt_33number = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\evt_33number.json'
+    base_data_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件'
 
     X, Y = generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                         evt_33number)
+                         evt_33number, base_data_dir)
     hiden_dim = 50
     epochs_train = 1000
     epochs_finetune = 109  # 调整膜厚值
@@ -319,5 +320,5 @@ if __name__ == "__main__":
     else:
         # data_info(X, Y)
         data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                          evt_33number).run()
+                          evt_33number, base_data_dir).run()
         pass

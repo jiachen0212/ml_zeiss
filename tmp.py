@@ -114,3 +114,20 @@ with open(js, encoding="utf-8") as reader:
     #         print(value)
 
 '''
+
+
+def tffresh():
+    def fun(f):
+        return f
+
+        # tsfresh
+        # https://github.com/blue-yonder/tsfresh
+        # https://tsfresh.readthedocs.io/en/latest/text/quick_start.html
+
+    from tsfresh import extract_features
+
+    file = r"D:\work\project\卡尔蔡司AR镀膜\文档s\cj.csv"
+    f = pd.read_csv(file, encoding="utf-8")
+    # 写一个剔除无效数据列的函数: 方差为0, 空数据列
+    f = fun(f)
+    extracted_features = extract_features(f, column_id="id", column_sort="time")
