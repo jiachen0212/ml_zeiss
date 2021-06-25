@@ -16,7 +16,7 @@ class data_post_process():
     '''
 
     def __init__(self, evt33, membrane, data_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                 evt_33number, base_data_dir):
+                 evt_33number, base_data_dir, CC_dir, CX_dir):
         '''
         :param MachineName-kinds:   ['1.56_DVS_CC', '1.56_DVS_CX', '1.6&1.67_DVS_CC', '1.6&1.67_DVS_CC_hpkf', '1.6&1.67_DVS_CX', '1.6&1.67_DVS_CX_hpkf', '1.6_DVSUN_CC']
 
@@ -56,9 +56,12 @@ class data_post_process():
         self.refine_data_json = refine_data_json
         self.oneone_evt_thickness = oneone_evt_thickness
         self.evt_33number = evt_33number
+        self.CC_dir = CC_dir
+        self.CX_dir = CX_dir
 
         # tmp 落盘文件
         self.evt_thick_js = r'./evt_thick.json'
+        self.evt_pair = r'正背面_thickness_evtname.txt'
 
     # def __call__(self, ):
     def run(self, ):
@@ -71,11 +74,11 @@ class data_post_process():
         # 数据清洗: 包括机台号一致,镀膜层数一致等..
         # clean_data_machineid(self.base_data_dir, self.new_path)
         # clean_data_nthickness(self.data_dir, self.n_thickness, self.evt_thick_js)
-
+        get_evtpair_info(self.CC_dir, self.CX_dir, self.evt33, self.evt_pair)
         evt_33(self.evt33, self.evt_dict, self.data_dir, self.evt_33number)
         lab_curve33(self.membrane, self.evt_dict, self.data_js, self.data_dir, self.thickness_lab_curve)
         check_data(self.thickness_lab_curve, self.evt_dict, self.bad_thick_lab)
-        refine_data(self.bad_thick_lab, self.process_data, self.refine_data_json, self.oneone_evt_thickness, self.face)
+        refine_data(self.bad_thick_lab, self.process_data, self.refine_data_json, self.oneone_evt_thickness, self.face, self.evt_pair)
 
 
 def clean_data_machineid(base_data_dir, new_path):
@@ -266,13 +269,63 @@ def check_data(thickness_lab_curve, evt_dict, bad_thick_lab):
             f.write('\n')
 
 
-def evt_pair_thick(evt_name, lines):
+
+def get_evtpair_info(CC_dir, CX_dir, evt33, evt_pair):
+    wb = xlrd.open_workbook(evt33)
+    data = wb.sheet_by_name('Sheet1')
+    number33_evts = dict()
+    rows = data.nrows
+    for i in range(1, rows):
+        number33 = data.cell(i, 2).value
+        if number33 not in number33_evts:
+            number33_evts[number33] = []
+        number33_evts[number33].append(data.cell(i, 5).value)
+
+    dirs = [CC_dir, CX_dir]
+    cxs = os.listdir(CX_dir)
+    ccs = os.listdir(CC_dir)
+
+    f = open(evt_pair, 'w')
+    evt_cc = []
+    for num33, evt_list in number33_evts.items():
+        if len(evt_list) == 2:
+            if (evt_list[1] + '.CSV' in cxs and evt_list[0] + '.CSV' in ccs) or (
+                    evt_list[0] + '.CSV' in cxs and evt_list[1] + '.CSV' in ccs):
+                evts = []
+                for dir_ in dirs:
+                    for i in range(2):
+                        if os.path.exists(os.path.join(dir_, evt_list[i] + '.CSV')):
+                            evts.append(os.path.join(dir_, evt_list[i] + '.CSV'))
+                thickness1 = []
+                thickness2 = []
+                # print(evts)
+                evt1, evt2 = evts[0], evts[1]
+                with open(evt1, 'r') as file:
+                    for line in file:
+                        if "Thickness" in line:
+                            thickness1.append(line.split(',')[4])
+                with open(evt2, 'r') as file:
+                    for line in file:
+                        if "Thickness" in line:
+                            thickness2.append(line.split(',')[4])
+                # if thickness1 != thickness2:
+                f.write(num33 + ',')
+                f.write(evt1.split('\\')[-1] + ',' + evt2.split('\\')[-1] + ',')
+                f.write(''.join(str(i) + ' ' for i in thickness1) + ',')
+                f.write(''.join(str(i) + ' ' for i in thickness2) + '\n')
+                evt_cc.append(evt1.split('\\')[-1])
+    print('get evt pair ~')
+
+
+def evt_pair_thick(evt_name):
     '''
     :param  two_face_thick: 正背面_thickness_evtname.txt文件由0625.py生成.函数后续再整合进来,这里用txt结果先
-    0625.py中, 只读取正背面均有evt文件的膜厚数据, 后续可以扩充功能, 只有一面膜厚数据的话,另一面就直接copy这组膜厚值即可.
+    0625.py中, 只读取正背面均有evt文件的膜厚数据. 只有一面膜厚数据的情况,在refine_data中的处理是,直接copy背面层的数据
 
     :return:
     '''
+    evt_pair = r'./正背面_thickness_evtname.txt'
+    lines = open(evt_pair, 'r').readlines()
     for line in lines:
         evt1, thick2, thick1 = line[:-1].split(',')[1], line[:-1].split(',')[4], line[:-1].split(',')[3]
         if evt_name == evt1:
@@ -283,7 +336,7 @@ def evt_pair_thick(evt_name, lines):
 
 # refine_data 0624 chenjia
 # add 正背面膜厚值 0625 chenjia
-def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness, face, concate=False):
+def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness, face, evt_pair, concate=False):
     '''
     :param concate or mean True/False
     :param process_data: 工艺记录.xlsx
@@ -291,7 +344,8 @@ def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness
     :param refine_data_json: finall_thick_lab的落盘json名
 
     '''
-    num33_evt1_evt2_thick1_thick2 = open(r'D:\work\project\卡尔蔡司AR镀膜\ML_ZEISS\正背面_thickness_evtname.txt', 'r')
+
+    num33_evt1_evt2_thick1_thick2 = open(evt_pair, 'r')
     lines = num33_evt1_evt2_thick1_thick2.readlines()
     wb = xlrd.open_workbook(process_data)
     data = wb.sheet_by_name('Sheet1')
@@ -316,7 +370,7 @@ def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness
                 oneone_evt_thickness[single_list[0]] = thickness  # evtname:thickness
 
                 # 在这里穿插,根据evtname, 找到当前evt的对应正面,并获取膜厚设置值
-                pair_thick, thick1 = evt_pair_thick(single_list[0]+'.CSV', lines)  # str, list
+                pair_thick, thick1 = evt_pair_thick(single_list[0]+'.CSV')  # str, list
                 if pair_thick and thick1 == thickness.split(','):
                     if not concate:
                         # 取mean, 保留7层维度

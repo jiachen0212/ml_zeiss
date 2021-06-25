@@ -82,11 +82,11 @@ def plot_loss(loss):
 
 
 def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                  evt_33number, base_data_dir):
+                  evt_33number, base_data_dir, CC_dir, CX_dir):
     # load json data
     if not os.path.exists(refine_data_json):
         data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                          evt_33number, base_data_dir).run()
+                          evt_33number, base_data_dir, CC_dir, CX_dir).run()
         print("data process done!")
     else:
         print("data has already processed! start mlp！！!")
@@ -257,19 +257,22 @@ if __name__ == "__main__":
             0.46, 0.44, 0.41, 0.43, 0.4, 0.39, 0.36, 0.25, 0.19, 0.17, 0.21, 0.19, 0.17, 0.17, 0.2, 0.2, 0.16, 0.20,
             0.26, 0.35, 0.41, 0.57, 0.64, 0.71, 0.9, 1.04, 1.17, 1.27, 1.43, 1.56, 1.82, 2.07, 2.4, 2.72, 3.02, 3.33,
             3.58, 3.87, 3.97, 4.34, 4.57, 4.73, 5.03, 5.45, 5.94]
-    # .json都是会落盘的信息,
+
+    base_data_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件'
+    evt_cc_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CC'
+    CC_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CC'
+    CX_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CX'
     file1 = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#膜色文件与EVT文件对应表.xlsx'
     file2 = r'D:\work\project\卡尔蔡司AR镀膜\文档s\蔡司资料0615\膜色数据.xlsx'
-    evt_cc_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CC'
-    data_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thickness_lab_curve.json'
     process_data = r'D:\work\project\卡尔蔡司AR镀膜\文档s\蔡司资料0615\工艺记录.xlsx'  # 此文档用于关联周期信息,筛选相同膜厚设置值所对应的lab曲线
+    # .json都是会落盘的信息,
+    data_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thickness_lab_curve.json'
     refine_data_json = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\refine_thickness_lab_curve.json'
     oneone_evt_thickness = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\oneone_evt_thickness.json'
     evt_33number = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\evt_33number.json'
-    base_data_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件'
 
     X, Y = generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                         evt_33number, base_data_dir)
+                         evt_33number, base_data_dir, CC_dir, CX_dir)
     hiden_dim = 50
     epochs_train = 1000
     epochs_finetune = 442  # 调整膜厚值
@@ -323,5 +326,5 @@ if __name__ == "__main__":
     else:
         # data_info(X, Y)
         data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                          evt_33number, base_data_dir).run()
+                          evt_33number, base_data_dir, CC_dir, CX_dir).run()
         pass
