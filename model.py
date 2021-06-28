@@ -7,6 +7,7 @@ import torch
 import torch.optim as optimizers
 from sklearn import metrics
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 
 from data_load import DataLoader
 from data_post_process import data_post_process
@@ -50,9 +51,9 @@ def compute_loss(t, y):
     return my_mse_loss()(y, t)
 
 
-def show_y_pred(y, gt_y=None, epo=None, best=None):
+def show_y_pred(y, gt_y=None, epo=None, best=None, flag='eval'):
     sample_num, dims = y.shape
-    plt.title('epoch {} lab_curve'.format(epo + 1))
+    plt.title('{} epoch {} lab_curve'.format(flag, epo + 1))
     plt.xlabel("Wave-length")
     plt.ylabel("Reflectance")
     x = [380 + 5 * i for i in range(dims)]
@@ -65,7 +66,8 @@ def show_y_pred(y, gt_y=None, epo=None, best=None):
         else:
             plt.plot(x, single_gt_y, color='cornflowerblue')
             plt.plot(x, single_y, color='moccasin')
-    plt.plot(x, best, color='red', label='target')
+    if best:
+        plt.plot(x, best, color='red', label='target')
     plt.legend()
     plt.savefig("lab_curve.png")
     plt.show()
@@ -142,13 +144,14 @@ def compare_res(best):
     print(np.mean(mse1) > np.mean(mse2))
 
 
-def run(DataLoader, scale, train_x, train_y, model, train_dataloader, epochs, best, is_train=True, optimizer=None):
+def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, epochs, best, is_train=True, optimizer=None):
     if is_train:
         loss_list = []
         for epoch in range(epochs):
             train_loss = 0
             # print('-' * 10, 'epoch: {}'.format(epoch + 1), '-' * 10)
             for ii, (data, label) in enumerate(train_dataloader):
+                # print(data.shape, 'train')
                 input = Variable(data, requires_grad=False)
                 target = Variable(label)
                 optimizer.zero_grad()
@@ -161,6 +164,22 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, epochs, be
                 train_loss += loss.item()
             train_loss /= len(train_dataloader)
             loss_list.append(train_loss)
+            if (epoch + 1) % 300 == 0:
+                model.eval()
+                for ii, (input, org) in enumerate(val_dataloader):
+                    # print(input.shape, 'val')
+                    model.eval()
+                    pred = model(input)
+                    y = pred.detach().numpy()
+                    show_y_pred(y, org, epo=epoch, flag='validation')
+            if epoch == epochs-1:
+                model.eval()
+                for ii, (input, org) in enumerate(train_dataloader):
+                    model.eval()
+                    pred = model(input)
+                    y = pred.detach().numpy()
+                    show_y_pred(y, org, epo=epoch, flag='train')
+
         plot_loss(loss_list)
         all_data = DataLoader((train_x, train_y), batch_size=train_x.shape[0], batch_first=False, device=device)
         for (data, label) in all_data:
@@ -168,7 +187,7 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, epochs, be
             preds = model(data)
             y_pred = preds.detach().numpy()
             np.save(r'./train.npy', y_pred)
-            show_y_pred(y_pred, gt_y=label, epo=epochs - 1, best=best)
+            show_y_pred(y_pred, gt_y=label, epo=epochs - 1, best=best, flag='train')
         torch.save(model.state_dict(), "./mlp.pth")
     else:
         model.load_state_dict(torch.load("./mlp.pth"))
@@ -191,7 +210,7 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, epochs, be
                 # optimizer = torch.optim.SGD({data},
                 #                             weight_decay=5e-3, lr=1e-7, momentum=0.5)
                 optimizer = optimizers.Adam(model.parameters(),
-                                            lr=1e-7,
+                                            lr=1e-8,
                                             betas=(0.9, 0.999), amsgrad=True)
                 optimizer.zero_grad()
                 score = model(data)
@@ -209,7 +228,7 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, epochs, be
                     np.save(r'./modified_x.npy', X)
             train_loss /= len(train_dataloader)
             loss_list.append(train_loss)
-            print('-' * 10, 'loss: {}'.format(train_loss), '-' * 10)
+            # print('-' * 10, 'loss: {}'.format(train_loss), '-' * 10)
         plot_loss(loss_list)
         print(loss_list.index(min(loss_list)))  # 返回fine-tune阶段min_loss出现的epoch
         print(max(loss_list), min(loss_list))
@@ -249,8 +268,8 @@ def data_info(X, Y):
 
 
 if __name__ == "__main__":
-    # train or fine-tune
-    flag = 3
+    # train or other
+    flag = 1
     # get_import_x()
     best = [5.52, 3.53, 1.97, 1.28, 0.74, 0.7, 0.85, 1.05, 1.23, 1.43, 1.63, 1.82, 1.84, 1.8, 1.75, 1.73, 1.64, 1.49,
             1.39, 1.31, 1.23, 1.16, 1.03, 0.91, 0.85, 0.86, 0.84, 0.77, 0.71, 0.64, 0.61, 0.61, 0.58, 0.56, 0.53, 0.46,
@@ -270,31 +289,34 @@ if __name__ == "__main__":
     refine_data_json = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\refine_thickness_lab_curve.json'
     oneone_evt_thickness = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\oneone_evt_thickness.json'
     evt_33number = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\evt_33number.json'
+    thick_hc_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick_hc_lab.json'
 
-    X, Y = generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
+    X, Y = generate_data(file1, file2, evt_cc_dir, data_js, process_data, thick_hc_lab_js, oneone_evt_thickness,
                          evt_33number, base_data_dir, CC_dir, CX_dir)
     hiden_dim = 50
-    epochs_train = 1000
-    epochs_finetune = 442  # 调整膜厚值
+    epochs_train = 3000
+    epochs_finetune = 1000  # 调整膜厚值
     input_dim = X.shape[-1]
     output_dim = Y.shape[-1]
     batch_size = X.shape[0]
     # # 数据规整化
     scale = StandardScaler(with_mean=True, with_std=True)
     X_ = scale.fit_transform(X)  # 注意后面观察膜厚的变化,需要用到它的逆操作: X = scale.inverse_transform(X)
-    # train_x, test_x, train_y, test_y = train_test_split(X, Y, test_size=0.3, random_state=2)
-    train_x, train_y = X_, Y  # all in data for train
+    train_x, test_x, train_y, test_y = train_test_split(X_, Y, test_size=0.2, random_state=2)
+    print("train size: {}".format(train_x.shape[0]))
+    print("validation size: {}".format(test_x.shape[0]))
+    # train_x, train_y = X_, Y  # all in data for train
     train_dataloader = DataLoader((train_x, train_y), batch_size=batch_size, batch_first=False, device=device)
-    val_dataloader = DataLoader((X, Y), batch_size=batch_size, batch_first=False, device=device)
+    val_dataloader = DataLoader((test_x, test_y), batch_size=batch_size, batch_first=False, device=device)
     model = MLP(input_dim, hiden_dim, output_dim).to(device)
     print(model)
     optimizer_train = optimizers.Adam(model.parameters(),
                                       lr=0.001,
-                                      betas=(0.9, 0.999), amsgrad=True)
+                                      betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)   # L2正则
     if flag == 1:
-        run(DataLoader, scale, train_x, train_y, model, train_dataloader, epochs_train, best, optimizer=optimizer_train)
+        run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, epochs_train, best, optimizer=optimizer_train)
     elif flag == 0:
-        run(DataLoader, scale, train_x, train_y, model, train_dataloader, epochs_finetune, best, is_train=False)
+        run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, epochs_finetune, best, is_train=False)
         compare_res(best)
     elif flag == 2:
         compare_res(best)
@@ -323,8 +345,9 @@ if __name__ == "__main__":
 
         # 怎么剔除异常点? 怎么使得每一个样本都刚好的逼近标准曲线？
         # 膜色曲线怎么计算得到lab值呢? xyz三个函数要提供下?
-    else:
+    elif flag == 3:
         # data_info(X, Y)
         data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                           evt_33number, base_data_dir, CC_dir, CX_dir).run()
-        pass
+
+

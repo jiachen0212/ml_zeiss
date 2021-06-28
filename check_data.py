@@ -167,7 +167,7 @@ def get_file_sensor(csv_dir, sensores, js_name):
 
 
 def get_evt_thickness(csv_dir, miss_, evt_thickness_val, evt_process_time):
-    # check下是不是所有的evt.csv都有膜厚参数,这个值很关键!
+    # check下是不是所有的evt.csv都有膜厚参数
     evt_thickness = dict()
     evt_process = dict()
     files = os.listdir(csv_dir)
@@ -305,9 +305,64 @@ def feature_project(file_sensor_dict, ):
     return
 
 
+
+def rate_thickness_check(csv_dir):
+    f = open(r'./thickness_int_float_2rate.txt', 'w')
+    files = os.listdir(csv_dir)
+    files = [a for a in files if "EVT" in a]
+    for file in files:
+        full_path = os.path.join(csv_dir, file)
+        process = open(full_path, 'r')
+        thick_int = []   # 存储膜厚设置值
+        thick_float = []  # 存储膜厚实测值
+        rate = []    # 速率实测值
+        for index, line in enumerate(process):
+            if 'Thickness' in line:
+                thick_int.append(float(line.split(',')[4]))
+                thick_float.append(float(line.split(',')[6]))
+            if 'Rate' in line:
+                rate.append(float(line.split(',')[6]))
+        # print(thick_int)
+        # print(thick_float)
+        # print(rate)
+        diff = [abs(thick_float[i] - thick_int[i]) for i in range(7)]
+        rate = [i*2 for i in rate]
+        # print(diff)
+        for i in range(7):
+            if diff[i] > rate[i]:
+                print()
+                f.write('{},{},{}\n'.format(file, str(diff[i]), str(rate[i])))
+
+
+
+def bad_sample_clean(thickness_js, evt_thick):
+    # dict key-value 转换
+    f = open(r'./bad_sample.txt', 'w')
+    thick_evt = dict()
+    with open(evt_thick, encoding="utf-8") as reader:
+        tmp = json.load(reader)
+        for evt, thick in tmp.items():
+            thick_evt[thick] = evt
+
+    with open(thickness_js, encoding="utf-8") as reader:
+        thick_lab = json.load(reader)
+        for thick, lab in thick_lab.items():
+            part1 = lab[4:24]   # 400~500
+            peak1 = max([float(i) for i in part1])
+            part2 = lab[6:14]
+            low_peak = min([float(i) for i in part2])
+            if peak1 > 3:
+                # print(thick_evt[thick])
+                f.write(thick_evt[thick]+'\n')
+            if low_peak < 0.14:
+                f.write(thick_evt[thick]+'\n')
+
+
+
+
 if __name__ == "__main__":
     # csv_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件'
-    csv_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CC'
+    csv_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CC_all'
     thickness_list = ['ACT_O1_QCMS_NOMTHICKNESS', 'ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_THICKNESS_CH1']   # 'ACT_O1_QCMS_THICKNESS_CH1'这个为膜厚代表列ba
 
     # step0.
@@ -329,6 +384,18 @@ if __name__ == "__main__":
     if not os.path.exists(thickness_sensor_file):
         get_thick_sensor(evt_thickness, thickness_sensor_file, file_sensor_dict)
 
+    # refine thick_lab
+    refine_thick_lab = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\org_refine_thickness_lab_curve.json'
+    oneone_evt_thick = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\oneone_evt_thickness.json'
+    # check 膜厚设置、实测、rate值
+    rate_thickness_check(csv_dir)
+
+    # 异常样本剔除
+    # bad_sample_clean(refine_thick_lab, oneone_evt_thick)
+
+
+
+
     # step4.
     # thickness-sensor
     # thickness-lab
@@ -341,4 +408,4 @@ if __name__ == "__main__":
     #     # sensor is a dict: sensor[sensor_name]=sensor_value
     #     for sensor_name, sensor_value in sensor.items():
     #         # tffresh(sensor_value)
-    tffresh()
+    # tffresh()
