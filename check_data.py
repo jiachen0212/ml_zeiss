@@ -308,7 +308,7 @@ def feature_project(file_sensor_dict, ):
 if __name__ == "__main__":
     # csv_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件'
     csv_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CC'
-    thickness_list = ['ACT_O1_QCMS_NOMTHICKNESS', 'ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_THICKNESS_CH1']
+    thickness_list = ['ACT_O1_QCMS_NOMTHICKNESS', 'ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_THICKNESS_CH1']   # 'ACT_O1_QCMS_THICKNESS_CH1'这个为膜厚代表列ba
 
     # step0.
     # evt_csv_par(csv_dir)   # evt和csv文件需要一一对应,首先进行文件一一对应清洗
