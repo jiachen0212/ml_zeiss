@@ -74,6 +74,7 @@ class data_post_process():
         # 数据清洗: 包括机台号一致,镀膜层数一致等..
         # clean_data_machineid(self.base_data_dir, self.new_path)
         # clean_data_nthickness(self.data_dir, self.n_thickness, self.evt_thick_js)
+        # 开始数据处理
         get_evtpair_info(self.CC_dir, self.CX_dir, self.evt33, self.evt_pair)
         evt_33(self.evt33, self.evt_dict, self.data_dir, self.evt_33number)
         lab_curve33(self.membrane, self.evt_dict, self.data_js, self.data_dir, self.thickness_lab_curve)
@@ -319,8 +320,8 @@ def get_evtpair_info(CC_dir, CX_dir, evt33, evt_pair):
 
 def evt_pair_thick(evt_name):
     '''
-    :param  two_face_thick: 正背面_thickness_evtname.txt文件由0625.py生成.函数后续再整合进来,这里用txt结果先
-    0625.py中, 只读取正背面均有evt文件的膜厚数据. 只有一面膜厚数据的情况,在refine_data中的处理是,直接copy背面层的数据
+    :param  evt_pair 存储正背面evt_pair name.
+    :param  只读取正背面均有evt文件的膜厚数据. 只有一面膜厚数据的情况,在refine_data中的处理是,直接copy背面层的数据
 
     :return:
     '''
