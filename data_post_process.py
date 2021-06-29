@@ -82,7 +82,7 @@ class data_post_process():
 
         # 添加3个耗材维度特征
         get_hc_value(self.process_data, self.num33_hc_js, '背面')
-        hc_feature(num33_hc_js, self.number33_thick_js, self.refine_data_json, self.thick_hc_lab_js)
+        hc_feature(self.num33_hc_js, self.number33_thick_js, self.refine_data_json, self.thick_hc_lab_js)
 
         # import check_data.py 中的函数实现部分数据清洗功能
         # rate_thickness_check(self.data_dir)   # 膜厚设置\实测值diff与rate*2对比
