@@ -85,7 +85,7 @@ class data_post_process():
         hc_feature(self.num33_hc_js, self.number33_thick_js, self.refine_data_json, self.thick_hc_lab_js)
 
         # import check_data.py 中的函数实现部分数据清洗功能
-        # rate_thickness_check(self.data_dir)   # 膜厚设置\实测值diff与rate*2对比
+        rate_thickness_check(self.data_dir)   # 膜厚设置\实测值diff与rate*2对比
         # [no!]
         # bad_sample_clean(self.refine_data_json, self.oneone_evt_thickness)   # 离群样本剔除,第一步拟合模型时不适用这些样本,第二步thickness微调再加入
 
@@ -477,8 +477,6 @@ def hc_feature(num33_hc_js, number33_thick_js, org_refine_data_json, thick_hc_la
 
 
 
-
-
 if __name__ == "__main__":
     base_data_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件'
     file1 = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#膜色文件与EVT文件对应表.xlsx'
@@ -487,13 +485,12 @@ if __name__ == "__main__":
     evt_cc_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CC'
     process_data = r'D:\work\project\卡尔蔡司AR镀膜\文档s\蔡司资料0615\工艺记录.xlsx'
     evt_thick = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\oneone_evt_thickness.json'
-    # rate_thickness_check(evt_cc_dir)  # import check_data.py 中的函数实现部分数据清洗功能
-    # bad_sample_clean(data_js, evt_thick)
-    # get_hc_value(process_data, '背面')
-    num33_hc_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\33_hc.json'
-    number33_thick_js = r'D:\work\project\卡尔蔡司AR镀膜\ML_ZEISS\33number_thickness.json'
-    refine_data_json = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\refine_thickness_lab_curve.json'
-    hc_feature(num33_hc_js, number33_thick_js, refine_data_json)
-
+    rate_thickness_check(evt_cc_dir)  # import check_data.py 中的函数实现部分数据清洗功能
+    # # bad_sample_clean(data_js, evt_thick)
+    # # get_hc_value(process_data, '背面')
+    # num33_hc_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\33_hc.json'
+    # number33_thick_js = r'D:\work\project\卡尔蔡司AR镀膜\ML_ZEISS\33number_thickness.json'
+    # refine_data_json = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\refine_thickness_lab_curve.json'
+    # hc_feature(num33_hc_js, number33_thick_js, refine_data_json)
 
 
