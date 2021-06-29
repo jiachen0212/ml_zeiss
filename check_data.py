@@ -2,11 +2,10 @@
 import json
 import os
 import shutil
+
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-
-import tsfresh
+import tsfresh as tsf
 
 '''
 peak峰值个数,峰值
@@ -80,12 +79,6 @@ def get_sub_title(dir_):
     f = open(os.path.join(r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs', 'sub_title.txt'), 'w')
     for sensor in all_sensor:
         f.write(sensor + ',')
-
-
-def tffresh():
-    x = [1, 2, 3, 4]
-    a = tsfresh.feature_extraction.feature_calculators.abs_energy(x)
-    print(a)
 
 
 def get_thickness(csv_dir, files):
@@ -306,7 +299,6 @@ def feature_project(file_sensor_dict, ):
     return
 
 
-
 def rate_thickness_check(csv_dir):
     f = open(r'./thickness_int_float_2rate.txt', 'w')
     files = os.listdir(csv_dir)
@@ -314,9 +306,9 @@ def rate_thickness_check(csv_dir):
     for file in files:
         full_path = os.path.join(csv_dir, file)
         process = open(full_path, 'r')
-        thick_int = []   # 存储膜厚设置值
+        thick_int = []  # 存储膜厚设置值
         thick_float = []  # 存储膜厚实测值
-        rate = []    # 速率实测值
+        rate = []  # 速率实测值
         for index, line in enumerate(process):
             if 'Thickness' in line:
                 thick_int.append(float(line.split(',')[4]))
@@ -327,13 +319,12 @@ def rate_thickness_check(csv_dir):
         # print(thick_float)
         # print(rate)
         diff = [abs(thick_float[i] - thick_int[i]) for i in range(7)]
-        rate = [i*2 for i in rate]
+        rate = [i * 2 for i in rate]
         # print(diff)
         for i in range(7):
             if diff[i] > rate[i]:
                 print()
                 f.write('{},{},{}\n'.format(file, str(diff[i]), str(rate[i])))
-
 
 
 def bad_sample_clean(thickness_js, evt_thick):
@@ -348,23 +339,22 @@ def bad_sample_clean(thickness_js, evt_thick):
     with open(thickness_js, encoding="utf-8") as reader:
         thick_lab = json.load(reader)
         for thick, lab in thick_lab.items():
-            part1 = lab[4:24]   # 400~500
+            part1 = lab[4:24]  # 400~500
             peak1 = max([float(i) for i in part1])
             part2 = lab[6:14]
             low_peak = min([float(i) for i in part2])
             if peak1 > 3:
                 # print(thick_evt[thick])
-                f.write(thick_evt[thick]+'\n')
+                f.write(thick_evt[thick] + '\n')
             if low_peak < 0.14:
-                f.write(thick_evt[thick]+'\n')
-
-
+                f.write(thick_evt[thick] + '\n')
 
 
 if __name__ == "__main__":
     # csv_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件'
     csv_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CC_all'
-    thickness_list = ['ACT_O1_QCMS_NOMTHICKNESS', 'ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_THICKNESS_CH1']   # 'ACT_O1_QCMS_THICKNESS_CH1'这个为膜厚代表列ba
+    thickness_list = ['ACT_O1_QCMS_NOMTHICKNESS', 'ACT_O1_QCMS_THICKNESS',
+                      'ACT_O1_QCMS_THICKNESS_CH1']  # 'ACT_O1_QCMS_THICKNESS_CH1'这个为膜厚代表列ba
 
     # step0.
     # evt_csv_par(csv_dir)   # evt和csv文件需要一一对应,首先进行文件一一对应清洗
@@ -388,14 +378,13 @@ if __name__ == "__main__":
     # refine thick_lab
     refine_thick_lab = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\org_refine_thickness_lab_curve.json'
     oneone_evt_thick = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\oneone_evt_thickness.json'
+
+
     # check 膜厚设置、实测、rate值
     # rate_thickness_check(csv_dir)
 
     # 异常样本剔除
     # bad_sample_clean(refine_thick_lab, oneone_evt_thick)
-
-
-
 
     # step4.
     # thickness-sensor
@@ -409,13 +398,124 @@ if __name__ == "__main__":
     #     # sensor is a dict: sensor[sensor_name]=sensor_value
     #     for sensor_name, sensor_value in sensor.items():
     #         # tffresh(sensor_value)
-    # tffresh()
 
-    js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick_hc_lab.json'
-    thick_hc_lab = json.load(open(js, 'r'))
-    for k, lab in thick_hc_lab.items():
-        print(k)
-        lab = [float(i) for i in lab]
-        x = [380+5*i for i in range(len(lab))]
-        plt.plot(x, lab, color='cornflowerblue', label='origin')
-        plt.show()
+    # js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick_hc_lab.json'
+    # thick_hc_lab = json.load(open(js, 'r'))
+    # for k, lab in thick_hc_lab.items():
+    #     print(k)
+    #     lab = [float(i) for i in lab]
+    #     x = [380+5*i for i in range(len(lab))]
+    #     plt.plot(x, lab, color='cornflowerblue', label='origin')
+    #     plt.show()
+
+    # file = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\机台文件说明.xlsx'
+    # wb = xlrd.open_workbook(file)
+    # data = wb.sheet_by_name('数据点')
+    # title = data.row_values(1)
+    # rows = data.nrows
+    # sensor_part_dict = dict()
+    # f = open(r'info_sensor.txt', 'w')
+    # for i in range(1, rows):
+    # sensor_part_dict[r'分段真空计'] = data.row_values(1)[:6]
+    # sensor_part_dict[r'炉膛压力'] = data.row_values(1)[6]
+    # sensor_part_dict[r'深冷机制冷温度'] = data.row_values(1)[7]
+    # sensor_part_dict[r'炉膛氧流量'] = data.row_values(1)[8:10]
+    # sensor_part_dict[r'膜厚及速率曲线'] = data.row_values(1)[10:14]
+    # sensor_part_dict[r'晶振频率'] = data.row_values(1)[14]
+    # sensor_part_dict[r'机台温度曲线'] = data.row_values(1)[15]
+    # sensor_part_dict[r'离子源相关曲线'] = data.row_values(1)[16:24]
+    # sensor_part_dict[r'深冷机曲线'] = data.row_values(1)[24]
+    # data = json.dumps(sensor_part_dict)
+    # with open(r'./info_sensor_dict.json', 'w', encoding="utf-8") as js_file:
+    #     js_file.write(data)
+    # for i in data.row_values(1):
+    #     f.write(i+',')
+
+    def sensor_feature(sen_list, data, title):
+        # data 是excel数据文件
+        # 一个data/evt样本输入进来,输出特征维度: 4*2+2*2=12维
+        f_sensor = []
+        for sen in sen_list:
+            index = title.index(sen)
+            col = data.col_values(index)[2:]
+            ts = pd.Series(col)  # 数据x假设已经获取
+            # 时序数据的的周期性、不可预测性和波动性
+            ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
+            f_sensor.append(ae1[0][1])
+            # # 时序数据的平稳性
+            ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
+            f_sensor.append(ae2[0][1])
+            # rate的 mean, std,
+            if 'RATE' in sen:
+                mean = np.mean([data.col_values(index)[2:]])
+                std = np.var([data.col_values(index)[2:]])
+                f_sensor.append(mean)
+                f_sensor.append(std)
+        return f_sensor
+
+
+    '''
+    ar_coefficient  自回归系数: 衡量时序数据的的周期性、不可预测性和波动性
+    augmented_dickey_fuller(x, param) 扩展迪基-福勒检验（ADF检验）: 测试一个自回归模型是否存在单位根，衡量时序数据的平稳性
+    # change_quantiles(x, ql, qh, isabs, f_agg) 给定区间的时序数据描述统计 : 先用ql和qh两个分位数在x中确定出一个区间，然后在这个区间里计算时序数据的均值、绝对值、连续变化值。（浮点数）
+    
+    '''
+
+    evt_7thick = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\oneone_evt_thickness.json'
+    thick7_lab = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\org_refine_thickness_lab_curve.json'
+    thick_hc_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick_hc_lab.json'
+    data_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CC'
+    thick14_hc3_sensor12_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick14hc3sensor12_lab.json'
+    # f = open(r'info_sensor.txt', 'r')
+    # sen_list = (f.readlines()[0]).split(',')[:-1]
+    sen_list = ['ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_RATE', 'ACT_O1_QCMS_THICKNESS_CH1', 'ACT_O1_QCMS_RATE_CH1']
+
+
+    def sensor_csv_feature(sen_list, data):
+        # 一个data/evt样本输入进来,输出特征维度: 4*2+2*2=12维
+        f_sensor = []
+        for sen in sen_list:
+            col = [i for i in data[sen]]
+            ts = pd.Series(col)
+            # 时序数据的的周期性、不可预测性和波动性
+            ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
+            f_sensor.append(ae1[0][1])
+            # # 时序数据的平稳性
+            ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
+            f_sensor.append(ae2[0][1])
+            # rate的 mean, std,
+            if 'RATE' in sen:
+                mean = np.mean([i for i in data[sen]][2:])
+                std = np.var([i for i in data[sen]][2:])
+                f_sensor.append(mean)
+                f_sensor.append(std)
+        # scale = StandardScaler(with_mean=True, with_std=True)
+        # f_sensor = np.reshape(np.array(f_sensor), (-1, 12))
+        f_sensor = [round(i * 10, 3) for i in f_sensor]
+        return ''.join(str(i) + ',' for i in f_sensor)
+
+
+    def add_sensor_feature(data_dir, evt_7thick_js, thick7_lab_js, thick_hc_lab_js, sen_list,
+                           thick14_hc3_sensor12_lab_js):
+        evt_7thick = json.load(open(evt_7thick_js, 'r'))
+        thick7_lab = json.load(open(thick7_lab_js, 'r'))
+        thick14hc3sensor12_lab = dict()
+        lab_thick_hc = dict()
+        thick_hc_lab = json.load(open(thick_hc_lab_js, 'r'))
+        for thick_hc, lab in thick_hc_lab.items():
+            lab_thick_hc[''.join(str(i) for i in lab)] = thick_hc
+        for evtname, thick7 in evt_7thick.items():
+            # 等待补充的17维feature
+            thick14_hc3 = lab_thick_hc[''.join(str(i) for i in thick7_lab[thick7])]
+            # 读取sensor数据csv文件
+            full_file_path = os.path.join(data_dir, evtname[3:] + '.CSV')
+            data = pd.read_csv(full_file_path, error_bad_lines=False)
+            sensor12 = sensor_csv_feature(sen_list, data)
+            thick14_hc3_sensor12 = thick14_hc3 + sensor12
+            thick14hc3sensor12_lab[thick14_hc3_sensor12] = thick7_lab[thick7]
+        data = json.dumps(thick14hc3sensor12_lab)
+        with open(thick14_hc3_sensor12_lab_js, 'w') as js_file:
+            js_file.write(data)
+
+
+    add_sensor_feature(data_dir, evt_7thick, thick7_lab, thick_hc_lab_js, sen_list, thick14_hc3_sensor12_lab_js)

@@ -6,8 +6,8 @@ import numpy as np
 import torch
 import torch.optim as optimizers
 from sklearn import metrics
-from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
 from data_load import DataLoader
 from data_post_process import data_post_process
@@ -88,16 +88,17 @@ def plot_loss(loss):
 
 
 def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                  evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, data_json):
-
-    if not os.path.exists(data_json):
+                  evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, data_json,
+                  thick14_hc3_sensor12_lab_js):
+    if not os.path.exists(thick14_hc3_sensor12_lab_js):
         data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                          evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, data_json).run()
+                          evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, data_json,
+                          thick14_hc3_sensor12_lab_js).run()
         print("data process done!")
     else:
         print("data has already processed! start mlp！！!")
 
-    with open(data_json, encoding="utf-8") as reader:
+    with open(thick14_hc3_sensor12_lab_js, encoding="utf-8") as reader:
         thicknesshc_curve = json.load(reader)
 
     Y = []
@@ -112,7 +113,7 @@ def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_j
     # X = [[i[0],i[1],i[2]*1.5,i[3]*1.5,i[4]*2,i[5]*2,i[6]] for i in X]
     Y = [[float(i) for i in a] for a in Y]
     Y = np.array(Y)
-    # print(X.shape, Y.shape)
+    print(X.shape, Y.shape)
     return X, Y
 
 
@@ -148,7 +149,8 @@ def compare_res(best):
     print(np.mean(mse1) > np.mean(mse2))
 
 
-def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, epochs, best, is_train=True, optimizer=None):
+def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, epochs, best, is_train=True,
+        optimizer=None):
     if is_train:
         loss_list = []
         for epoch in range(epochs):
@@ -176,7 +178,7 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_datalo
                     pred = model(input)
                     y = pred.detach().numpy()
                     show_y_pred(y, org, epo=epoch, flag='validation')
-            if epoch == epochs-1:
+            if epoch == epochs - 1:
                 model.eval()
                 for ii, (input, org) in enumerate(train_dataloader):
                     model.eval()
@@ -279,7 +281,7 @@ def data_info(X, Y):
 if __name__ == "__main__":
 
     # 1train or 0modified_thickness or 3generate_data
-    flag = 3
+    flag = 1
     # get_important_x()
 
     # 标准lab曲线
@@ -305,11 +307,14 @@ if __name__ == "__main__":
     # 加入3维耗材信息
     num33_hc_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\33_hc.json'
     number33_thick_js = r'D:\work\project\卡尔蔡司AR镀膜\ML_ZEISS\33number_thickness.json'
-    # final thick_hc_lab json data!
     thick_hc_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick_hc_lab.json'
+    # 加入12维sensor列时序特征
+    thick14_hc3_sensor12_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick14hc3sensor12_lab.json'
 
+    # data process start
     X, Y = generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                         evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js)
+                         evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js,
+                         thick14_hc3_sensor12_lab_js)
     hiden_dim = 50
     epochs_train = 3000
     # 调整膜厚值
@@ -330,16 +335,17 @@ if __name__ == "__main__":
     print(model)
     optimizer_train = optimizers.Adam(model.parameters(),
                                       lr=0.001,
-                                      betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)   # L2正则
+                                      betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)  # L2正则
     if flag == 1:
-        run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, epochs_train, best, optimizer=optimizer_train)
+        run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, epochs_train, best,
+            optimizer=optimizer_train)
     elif flag == 0:
-        run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, epochs_finetune, best, is_train=False)
+        run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, epochs_finetune, best,
+            is_train=False)
         compare_res(best)
         # 怎么剔除异常点? 怎么使得每一个样本都刚好的逼近标准曲线？[膜厚设置值-实测>2*rate,考虑剔除]
     elif flag == 3:
         data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                          evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js).run()
+                          evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js,
+                          thick14_hc3_sensor12_lab_js).run()
         # data_info(X, Y)
-
-

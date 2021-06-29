@@ -1,12 +1,20 @@
 # coding=utf-8
 import json
 import os
-import shutil
 import random
-import xlrd
-from check_data import rate_thickness_check, bad_sample_clean
+import shutil
 
-# edited by chen-jia 2021.0625
+import numpy as np
+import pandas as pd
+import tsfresh as tsf
+import xlrd
+
+from check_data import rate_thickness_check
+
+'''
+    edited by chen-jia 2021.0625    
+
+'''
 
 
 class data_post_process():
@@ -16,7 +24,8 @@ class data_post_process():
     '''
 
     def __init__(self, evt33, membrane, data_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                 evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js):
+                 evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js,
+                 thick14_hc3_sensor12_lab_js):
         '''
         :param MachineName-kinds:   ['1.56_DVS_CC', '1.56_DVS_CX', '1.6&1.67_DVS_CC', '1.6&1.67_DVS_CC_hpkf', '1.6&1.67_DVS_CX', '1.6&1.67_DVS_CX_hpkf', '1.6_DVSUN_CC']
 
@@ -61,14 +70,17 @@ class data_post_process():
         self.num33_hc_js = num33_hc_js
         self.number33_thick_js = number33_thick_js
         self.thick_hc_lab_js = thick_hc_lab_js
+        self.thick14_hc3_sensor12_lab_js = thick14_hc3_sensor12_lab_js
 
         # tmp 落盘文件
         self.evt_thick_js = r'./evt_thick.json'
         self.evt_pair = r'正背面_thickness_evtname.txt'
+        self.thick7_lab = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\org_refine_thickness_lab_curve.json'
+        self.sen_list = ['ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_RATE', 'ACT_O1_QCMS_THICKNESS_CH1',
+                         'ACT_O1_QCMS_RATE_CH1']
 
     # def __call__(self, ):
     def run(self, ):
-
         # 数据清洗: 包括机台号一致,镀膜层数一致等..
         # clean_data_machineid(self.base_data_dir, self.new_path)
         # clean_data_nthickness(self.data_dir, self.n_thickness, self.evt_thick_js)
@@ -84,12 +96,14 @@ class data_post_process():
         get_hc_value(self.process_data, self.num33_hc_js, '背面')
         hc_feature(self.num33_hc_js, self.number33_thick_js, self.refine_data_json, self.thick_hc_lab_js)
 
+        # 添加膜厚,rate等sensor列的时序特征
+        add_sensor_feature(self.data_dir, self.oneone_evt_thickness, self.thick7_lab, self.thick_hc_lab_js,
+                           self.sen_list, self.thick14_hc3_sensor12_lab_js)
+
         # import check_data.py 中的函数实现部分数据清洗功能
-        rate_thickness_check(self.data_dir)   # 膜厚设置\实测值diff与rate*2对比
+        rate_thickness_check(self.data_dir)  # 膜厚设置\实测值diff与rate*2对比
         # [no!]
         # bad_sample_clean(self.refine_data_json, self.oneone_evt_thickness)   # 离群样本剔除,第一步拟合模型时不适用这些样本,第二步thickness微调再加入
-
-
 
 
 def clean_data_machineid(base_data_dir, new_path):
@@ -280,7 +294,6 @@ def check_data(thickness_lab_curve, evt_dict, bad_thick_lab):
             f.write('\n')
 
 
-
 def get_evtpair_info(CC_dir, CX_dir, evt33, evt_pair):
     wb = xlrd.open_workbook(evt33)
     data = wb.sheet_by_name('Sheet1')
@@ -340,7 +353,7 @@ def evt_pair_thick(evt_name):
     for line in lines:
         evt1, thick2, thick1 = line[:-1].split(',')[1], line[:-1].split(',')[4], line[:-1].split(',')[3]
         if evt_name == evt1:
-            return ''.join(str(i)+',' for i in thick2.split(' '))[:-1], thick1.split(' ')
+            return ''.join(str(i) + ',' for i in thick2.split(' '))[:-1], thick1.split(' ')
 
     return [], []
 
@@ -375,34 +388,34 @@ def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness
         # time_index = []
         for single_list in list_:
             # single_list：[EVT21050425, [lab_curv], 33number]
-            number33.write(single_list[-1]+'\n')
+            number33.write(single_list[-1] + '\n')
             if single_list[-1] in number_time:
                 # time_index.append(number_time[single_list[-1]])
                 # the_number_33 = time_number[min(time_index)]  # 电枪数被使用最少的那个33编号文件 会导致有些33121052004在bad_thick_lab中找不到...
                 oneone_evt_thickness[single_list[0]] = thickness  # evtname:thickness
                 # number33_thick[single_list[-1]] = thickness  # 获取7层膜厚数值
                 # 在这里穿插,根据evtname, 找到当前evt的对应正面,并获取膜厚设置值
-                pair_thick, thick1 = evt_pair_thick(single_list[0]+'.CSV')  # str, list
+                pair_thick, thick1 = evt_pair_thick(single_list[0] + '.CSV')  # str, list
                 if pair_thick and thick1 == thickness.split(','):
                     if not concate:
                         # 取mean, 保留7层维度
                         th1 = thickness.split(',')[:-1]
                         th2 = pair_thick.split(',')[:-1]
                         len_ = len(th1)
-                        final = [(float(th1[i]) + float(th2[i]))/2+random.uniform(1e-4,5e-5) for i in range(len_)]
+                        final = [(float(th1[i]) + float(th2[i])) / 2 + random.uniform(1e-4, 5e-5) for i in range(len_)]
                         final = ''.join(str(i) + ',' for i in final)
                         finall_thick_lab[final] = single_list[1]
                     else:
                         # 正背concate
-                        finall_thick_lab[thickness+pair_thick] = single_list[1]
-                        number33_thick[single_list[-1]] = thickness+pair_thick
+                        finall_thick_lab[thickness + pair_thick] = single_list[1]
+                        number33_thick[single_list[-1]] = thickness + pair_thick
                 else:
                     if not concate:
                         # print(pair_thick, thick1, thickness, single_list[0]+'.CSV')   # 部分背面evt找不到正面的evt,没事那就copy一份膜值.
                         finall_thick_lab[thickness] = single_list[1]
                     else:  # concate
-                        finall_thick_lab[thickness+thickness[:-1]] = single_list[1]    # 正背concate
-                        number33_thick[single_list[-1]] = thickness+thickness[:-1]
+                        finall_thick_lab[thickness + thickness[:-1]] = single_list[1]  # 正背concate
+                        number33_thick[single_list[-1]] = thickness + thickness[:-1]
 
                 break  # 找到一个33number了,就不再遍历list_, break出循环
     # mean处理正背面的膜厚时, 可能出现key值重复,覆盖更新了value,故而导致finall_thick_lab 和 oneone_evt_thickness 长度不等
@@ -435,7 +448,8 @@ def get_hc_value(process_data, num33_hc_js, face):
         # 依然是读取的背面行的数据,正面镀膜完后再背面..耗材去背面的更合理
         if data.cell(i, 1).value in num33_list and data.cell(i, 2).value == face:
             # print(data.row_values(i))
-            number33_dsdzqdb[data.cell(i, 1).value] = [data.cell(i, 13).value, data.cell(i, 14).value, data.cell(i, 16).value]
+            number33_dsdzqdb[data.cell(i, 1).value] = [data.cell(i, 13).value, data.cell(i, 14).value,
+                                                       data.cell(i, 16).value]
     data = json.dumps(number33_dsdzqdb)
     with open(num33_hc_js, 'w') as js_file:
         js_file.write(data)
@@ -453,12 +467,12 @@ def hc_feature(num33_hc_js, number33_thick_js, org_refine_data_json, thick_hc_la
 
         # method2.
         # 简单线性norm  要对hc维度的数据*40之类的吗? 虽然后续会有数据规整化操作
-        hc = str(round(num33_hc[num33][0]/8, 2))+','
-        hc += str(round(num33_hc[num33][1]/120, 2))+','
-        hc += str(round(num33_hc[num33][2]/120, 2))+','
+        hc = str(round(num33_hc[num33][0] / 8, 2)) + ','
+        hc += str(round(num33_hc[num33][1] / 120, 2)) + ','
+        hc += str(round(num33_hc[num33][2] / 120, 2)) + ','
         # 14+3
         if num33_thick14[num33].endswith(','):
-            thickness_hc = num33_thick14[num33]+hc
+            thickness_hc = num33_thick14[num33] + hc
         else:
             thickness_hc = num33_thick14[num33] + ',' + hc
 
@@ -476,6 +490,51 @@ def hc_feature(num33_hc_js, number33_thick_js, org_refine_data_json, thick_hc_la
         js_file.write(data)
 
 
+def sensor_csv_feature(sen_list, data):
+    # 一个data/evt样本输入进来,输出特征维度: 4*2+2*2=12维
+    f_sensor = []
+    for sen in sen_list:
+        col = [i for i in data[sen]]
+        ts = pd.Series(col)
+        # 时序数据的的周期性、不可预测性和波动性
+        ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
+        f_sensor.append(ae1[0][1])
+        # # 时序数据的平稳性
+        ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
+        f_sensor.append(ae2[0][1])
+        # rate的 mean, std,
+        if 'RATE' in sen:
+            mean = np.mean([i for i in data[sen]][2:])
+            std = np.var([i for i in data[sen]][2:])
+            f_sensor.append(mean)
+            f_sensor.append(std)
+    # scale = StandardScaler(with_mean=True, with_std=True)
+    # f_sensor = np.reshape(np.array(f_sensor), (-1, 12))
+    f_sensor = [round(i * 10, 3) for i in f_sensor]
+    return ''.join(str(i) + ',' for i in f_sensor)
+
+
+def add_sensor_feature(data_dir, evt_7thick_js, thick7_lab_js, thick_hc_lab_js, sen_list, thick14_hc3_sensor12_lab_js):
+    evt_7thick = json.load(open(evt_7thick_js, 'r'))
+    thick7_lab = json.load(open(thick7_lab_js, 'r'))
+    thick14hc3sensor12_lab = dict()
+    lab_thick_hc = dict()
+    thick_hc_lab = json.load(open(thick_hc_lab_js, 'r'))
+    for thick_hc, lab in thick_hc_lab.items():
+        lab_thick_hc[''.join(str(i) for i in lab)] = thick_hc
+    for evtname, thick7 in evt_7thick.items():
+        # 等待补充的17维feature
+        thick14_hc3 = lab_thick_hc[''.join(str(i) for i in thick7_lab[thick7])]
+        # 读取sensor数据csv文件
+        full_file_path = os.path.join(data_dir, evtname[3:] + '.CSV')
+        data = pd.read_csv(full_file_path, error_bad_lines=False)
+        sensor12 = sensor_csv_feature(sen_list, data)
+        thick14_hc3_sensor12 = thick14_hc3 + sensor12
+        thick14hc3sensor12_lab[thick14_hc3_sensor12] = thick7_lab[thick7]
+    data = json.dumps(thick14hc3sensor12_lab)
+    with open(thick14_hc3_sensor12_lab_js, 'w') as js_file:
+        js_file.write(data)
+
 
 if __name__ == "__main__":
     base_data_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件'
@@ -492,5 +551,3 @@ if __name__ == "__main__":
     # number33_thick_js = r'D:\work\project\卡尔蔡司AR镀膜\ML_ZEISS\33number_thickness.json'
     # refine_data_json = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\refine_thickness_lab_curve.json'
     # hc_feature(num33_hc_js, number33_thick_js, refine_data_json)
-
-
