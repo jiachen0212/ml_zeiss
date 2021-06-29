@@ -16,7 +16,7 @@ class data_post_process():
     '''
 
     def __init__(self, evt33, membrane, data_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                 evt_33number, base_data_dir, CC_dir, CX_dir):
+                 evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js):
         '''
         :param MachineName-kinds:   ['1.56_DVS_CC', '1.56_DVS_CX', '1.6&1.67_DVS_CC', '1.6&1.67_DVS_CC_hpkf', '1.6&1.67_DVS_CX', '1.6&1.67_DVS_CX_hpkf', '1.6_DVSUN_CC']
 
@@ -58,6 +58,9 @@ class data_post_process():
         self.evt_33number = evt_33number
         self.CC_dir = CC_dir
         self.CX_dir = CX_dir
+        self.num33_hc_js = num33_hc_js
+        self.number33_thick_js = number33_thick_js
+        self.thick_hc_lab_js = thick_hc_lab_js
 
         # tmp 落盘文件
         self.evt_thick_js = r'./evt_thick.json'
@@ -65,11 +68,6 @@ class data_post_process():
 
     # def __call__(self, ):
     def run(self, ):
-
-        if 'CC' in self.data_dir:
-            self.face = '背面'
-        elif 'CX' in self.data_dir:
-            self.face = '正面'
 
         # 数据清洗: 包括机台号一致,镀膜层数一致等..
         # clean_data_machineid(self.base_data_dir, self.new_path)
@@ -80,11 +78,18 @@ class data_post_process():
         evt_33(self.evt33, self.evt_dict, self.data_dir, self.evt_33number)
         lab_curve33(self.membrane, self.evt_dict, self.data_js, self.data_dir, self.thickness_lab_curve)
         check_data(self.thickness_lab_curve, self.evt_dict, self.bad_thick_lab)
-        refine_data(self.bad_thick_lab, self.process_data, self.refine_data_json, self.oneone_evt_thickness, self.face)
+        refine_data(self.bad_thick_lab, self.process_data, self.refine_data_json, self.oneone_evt_thickness)
+
+        # 添加3个耗材维度特征
+        get_hc_value(self.process_data, self.num33_hc_js, '背面')
+        hc_feature(num33_hc_js, self.number33_thick_js, self.refine_data_json, self.thick_hc_lab_js)
 
         # import check_data.py 中的函数实现部分数据清洗功能
         # rate_thickness_check(self.data_dir)   # 膜厚设置\实测值diff与rate*2对比
-        # bad_sample_clean(self.refine_data_json, self.oneone_evt_thickness)   # 利群样本剔除,第一步拟合模型时不适用这些样本,第二步thickness微调再加入
+        # [no!]
+        # bad_sample_clean(self.refine_data_json, self.oneone_evt_thickness)   # 离群样本剔除,第一步拟合模型时不适用这些样本,第二步thickness微调再加入
+
+
 
 
 def clean_data_machineid(base_data_dir, new_path):
@@ -341,8 +346,8 @@ def evt_pair_thick(evt_name):
 
 
 # refine_data 0624 chenjia
-# add 正背面膜厚值 0625 chenjia
-def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness, face, concate=True):
+# add 正背面膜厚值, concate or mean. 0625 chenjia
+def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness, concate=True):
     '''
     :param concate or mean True/False
     :param process_data: 工艺记录.xlsx
@@ -359,9 +364,10 @@ def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness
     finall_thick_lab = dict()
     oneone_evt_thickness = dict()
     number33_thick = dict()
+
     for i in range(1, rows):
         # 正背面, 与data_dir中的 CC or CX后缀对应
-        if data.cell(i, 2).value == face:
+        if data.cell(i, 2).value == '背面':
             # 33121060707:电子枪数号
             number_time[data.cell(i, 1).value] = data.cell(i, 14).value  # 33121052004: time_index
             time_number[data.cell(i, 14).value] = data.cell(i, 1).value  # time_index: 33121052004
@@ -415,9 +421,8 @@ def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness
         js_file.write(data)
 
 
-def get_hc_value(process_data, face):
+def get_hc_value(process_data, num33_hc_js, face):
     f = open(r'./33number.txt', 'r')
-    f_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\33_hc.json'
     number33 = f.readlines()
     num33_list = []
     for nub33 in number33:
@@ -432,12 +437,11 @@ def get_hc_value(process_data, face):
             # print(data.row_values(i))
             number33_dsdzqdb[data.cell(i, 1).value] = [data.cell(i, 13).value, data.cell(i, 14).value, data.cell(i, 16).value]
     data = json.dumps(number33_dsdzqdb)
-    with open(f_js, 'w') as js_file:
+    with open(num33_hc_js, 'w') as js_file:
         js_file.write(data)
 
 
-def hc_feature(num33_hc_js, number33_thick_js, org_refine_data_json):
-    thick_hc_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick_hc_lab.json'
+def hc_feature(num33_hc_js, number33_thick_js, org_refine_data_json, thick_hc_lab_js):
     num33_hc = json.load(open(num33_hc_js, 'r'))
     num33_thick14 = json.load(open(number33_thick_js, 'r'))
     thick14_lab = json.load(open(org_refine_data_json, 'r'))

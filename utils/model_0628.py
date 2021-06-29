@@ -23,7 +23,7 @@ colors = list(cnames.keys())
 from sklearn.neural_network import MLPRegressor
 
 
-def get_important_x():
+def get_import_x():
     weights = [1 for i in range(81)]
     nms = [380 + i * 5 for i in range(81)]
     a = [380, 400, 405, 410, 435, 440, 445, 635, 640, 645, 780]
@@ -51,27 +51,22 @@ def compute_loss(t, y):
     return my_mse_loss()(y, t)
 
 
-def show_y_pred(y, gt_y=None, epo=None, best=None, flag='eval'):
+def show_y_pred(y, gt_y=None, epo=None, best=None):
     sample_num, dims = y.shape
-    plt.title('{} epoch {} lab_curve'.format(flag, epo + 1))
+    plt.title('epoch {} lab_curve'.format(epo + 1))
     plt.xlabel("Wave-length")
     plt.ylabel("Reflectance")
     x = [380 + 5 * i for i in range(dims)]
     for i in range(sample_num):
         single_y = y[i, :]
         single_gt_y = gt_y[i, :]
-        if single_gt_y[24] > 2:
-            plt.plot(x, single_gt_y, color='black', label='gt_bad')
-            plt.plot(x, single_y, color='red', label='mlp_bad')
+        if i == 0:
+            plt.plot(x, single_gt_y, color='cornflowerblue', label='origin')
+            plt.plot(x, single_y, color='moccasin', label='mlp regression')
         else:
-            if i == 0:
-                plt.plot(x, single_gt_y, color='cornflowerblue', label='origin')
-                plt.plot(x, single_y, color='moccasin', label='mlp regression')
-            else:
-                plt.plot(x, single_gt_y, color='cornflowerblue')
-                plt.plot(x, single_y, color='moccasin')
-    if best:
-        plt.plot(x, best, color='red', label='target')
+            plt.plot(x, single_gt_y, color='cornflowerblue')
+            plt.plot(x, single_y, color='moccasin')
+    plt.plot(x, best, color='red', label='target')
     plt.legend()
     plt.savefig("lab_curve.png")
     plt.show()
@@ -88,31 +83,31 @@ def plot_loss(loss):
 
 
 def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                  evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, data_json):
-
-    if not os.path.exists(data_json):
+                  evt_33number, base_data_dir, CC_dir, CX_dir):
+    # load json data
+    if not os.path.exists(refine_data_json):
         data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                          evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, data_json).run()
+                          evt_33number, base_data_dir, CC_dir, CX_dir).run()
         print("data process done!")
     else:
         print("data has already processed! start mlp！！!")
-
-    with open(data_json, encoding="utf-8") as reader:
-        thicknesshc_curve = json.load(reader)
-
+    with open(refine_data_json, encoding="utf-8") as reader:
+        thickness_curve = json.load(reader)
     Y = []
-    for thicknesshc, lab_curve in thicknesshc_curve.items():
-        Y.append(thicknesshc_curve[thicknesshc])
-    X = list(thicknesshc_curve.keys())
+    for thickness, lab_curve in thickness_curve.items():
+        Y.append(thickness_curve[thickness])
+    X = list(thickness_curve.keys())
     X = [i[:-1] for i in X]
     X = [i.split(',') for i in X]
     X = [[float(i) for i in a] for a in X]
     X = np.array(X)
+
     # 手动调整某基层膜厚的值,看看曲线在哪些频段会产生很大变化否?
     # X = [[i[0],i[1],i[2]*1.5,i[3]*1.5,i[4]*2,i[5]*2,i[6]] for i in X]
     Y = [[float(i) for i in a] for a in Y]
+
     Y = np.array(Y)
-    # print(X.shape, Y.shape)
+    print(X.shape, Y.shape)
     return X, Y
 
 
@@ -148,50 +143,34 @@ def compare_res(best):
     print(np.mean(mse1) > np.mean(mse2))
 
 
-def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, epochs, best, is_train=True, optimizer=None):
+def run(DataLoader, scale, train_x, train_y, model, train_dataloader, epochs, best, is_train=True, optimizer=None):
     if is_train:
         loss_list = []
         for epoch in range(epochs):
             train_loss = 0
-            print('-' * 10, 'epoch: {}'.format(epoch + 1), '-' * 10)
+            # print('-' * 10, 'epoch: {}'.format(epoch + 1), '-' * 10)
             for ii, (data, label) in enumerate(train_dataloader):
-                # print(data.shape, 'train')
                 input = Variable(data, requires_grad=False)
                 target = Variable(label)
                 optimizer.zero_grad()
                 score = model(input)
                 loss = compute_loss(score, target)
                 # print(metrics.mean_squared_error(score.detach().numpy(), target.detach().numpy()))
-                print('-' * 10, 'epoch {} loss: {}'.format(epoch, loss), '-' * 10)
+                # print('-' * 10, 'epoch {} loss: {}'.format(epoch, loss), '-' * 10)
                 loss.backward()
                 optimizer.step()
                 train_loss += loss.item()
             train_loss /= len(train_dataloader)
             loss_list.append(train_loss)
-            if (epoch + 1) % 300 == 0:
-                model.eval()
-                for ii, (input, org) in enumerate(val_dataloader):
-                    # print(input.shape, 'val')
-                    model.eval()
-                    pred = model(input)
-                    y = pred.detach().numpy()
-                    show_y_pred(y, org, epo=epoch, flag='validation')
-            if epoch == epochs-1:
-                model.eval()
-                for ii, (input, org) in enumerate(train_dataloader):
-                    model.eval()
-                    pred = model(input)
-                    y = pred.detach().numpy()
-                    show_y_pred(y, org, epo=epoch, flag='train')
         plot_loss(loss_list)
-        torch.save(model.state_dict(), "./mlp.pth")
         all_data = DataLoader((train_x, train_y), batch_size=train_x.shape[0], batch_first=False, device=device)
         for (data, label) in all_data:
             model.eval()
             preds = model(data)
             y_pred = preds.detach().numpy()
             np.save(r'./train.npy', y_pred)
-            show_y_pred(y_pred, gt_y=label, epo=epochs - 1, best=best, flag='train')
+            show_y_pred(y_pred, gt_y=label, epo=epochs - 1, best=best)
+        torch.save(model.state_dict(), "./mlp.pth")
     else:
         model.load_state_dict(torch.load("./mlp.pth"))
         # params = list(model.named_parameters())
@@ -214,7 +193,7 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_datalo
                 #                             weight_decay=5e-3, lr=1e-7, momentum=0.5)
                 optimizer = optimizers.Adam(model.parameters(),
                                             lr=1e-8,
-                                            betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)
+                                            betas=(0.9, 0.999), amsgrad=True)
                 optimizer.zero_grad()
                 score = model(data)
                 loss = compute_loss(score, target)
@@ -231,19 +210,13 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_datalo
                     np.save(r'./modified_x.npy', X)
             train_loss /= len(train_dataloader)
             loss_list.append(train_loss)
-            print('-' * 10, 'loss: {}'.format(train_loss), '-' * 10)
+            # print('-' * 10, 'loss: {}'.format(train_loss), '-' * 10)
         plot_loss(loss_list)
         print(loss_list.index(min(loss_list)))  # 返回fine-tune阶段min_loss出现的epoch
         print(max(loss_list), min(loss_list))
 
 
 def data_info(X, Y):
-    '''
-
-    :param X:
-    :param Y:
-    :return: 检查一个膜厚设置输入, 是否对应多条lab曲线.
-    '''
     print("X shape:", X.shape)
     print("Y shape", Y.shape)
     data_length = X.shape[0]
@@ -277,12 +250,9 @@ def data_info(X, Y):
 
 
 if __name__ == "__main__":
-
-    # 1train or 0modified_thickness or 3generate_data
-    flag = 3
-    # get_important_x()
-
-    # 标准lab曲线
+    # train or fine-tune
+    flag = 4
+    # get_import_x()
     best = [5.52, 3.53, 1.97, 1.28, 0.74, 0.7, 0.85, 1.05, 1.23, 1.43, 1.63, 1.82, 1.84, 1.8, 1.75, 1.73, 1.64, 1.49,
             1.39, 1.31, 1.23, 1.16, 1.03, 0.91, 0.85, 0.86, 0.84, 0.77, 0.71, 0.64, 0.61, 0.61, 0.58, 0.56, 0.53, 0.46,
             0.46, 0.44, 0.41, 0.43, 0.4, 0.39, 0.36, 0.25, 0.19, 0.17, 0.21, 0.19, 0.17, 0.17, 0.2, 0.2, 0.16, 0.20,
@@ -295,51 +265,87 @@ if __name__ == "__main__":
     CX_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CX'
     file1 = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#膜色文件与EVT文件对应表.xlsx'
     file2 = r'D:\work\project\卡尔蔡司AR镀膜\文档s\蔡司资料0615\膜色数据.xlsx'
-    # 此文档用于关联周期信息,筛选相同膜厚设置值所对应的lab曲线
-    process_data = r'D:\work\project\卡尔蔡司AR镀膜\文档s\蔡司资料0615\工艺记录.xlsx'
-    # .json都是数据处理中需要落盘的信息
+    process_data = r'D:\work\project\卡尔蔡司AR镀膜\文档s\蔡司资料0615\工艺记录.xlsx'  # 此文档用于关联周期信息,筛选相同膜厚设置值所对应的lab曲线
+    # .json都是会落盘的信息,
     data_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thickness_lab_curve.json'
     refine_data_json = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\refine_thickness_lab_curve.json'
     oneone_evt_thickness = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\oneone_evt_thickness.json'
     evt_33number = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\evt_33number.json'
-    # 加入3维耗材信息
-    num33_hc_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\33_hc.json'
-    number33_thick_js = r'D:\work\project\卡尔蔡司AR镀膜\ML_ZEISS\33number_thickness.json'
-    # final thick_hc_lab json data!
-    thick_hc_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick_hc_lab.json'
 
     X, Y = generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                         evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js)
-    hiden_dim = 50
-    epochs_train = 3000
-    # 调整膜厚值
-    epochs_finetune = 1000
+                         evt_33number, base_data_dir, CC_dir, CX_dir)
+    hiden_dim = 100
+    epochs_train = 6000
+    epochs_finetune = 1000  # 调整膜厚值
     input_dim = X.shape[-1]
     output_dim = Y.shape[-1]
     batch_size = X.shape[0]
-    # 数据规整化
+    # # 数据规整化
     scale = StandardScaler(with_mean=True, with_std=True)
-    # 注意后面观察膜厚的变化,需要用到它的逆操作: X = scale.inverse_transform(X)
-    X_ = scale.fit_transform(X)
+    X_ = scale.fit_transform(X)  # 注意后面观察膜厚的变化,需要用到它的逆操作: X = scale.inverse_transform(X)
     train_x, test_x, train_y, test_y = train_test_split(X_, Y, test_size=0.2, random_state=2)
-    print("train size: {}".format(train_x.shape[0]))
-    print("validation size: {}".format(test_x.shape[0]))
+    # train_x, train_y = X_, Y  # all in data for train
     train_dataloader = DataLoader((train_x, train_y), batch_size=batch_size, batch_first=False, device=device)
     val_dataloader = DataLoader((test_x, test_y), batch_size=batch_size, batch_first=False, device=device)
     model = MLP(input_dim, hiden_dim, output_dim).to(device)
     print(model)
     optimizer_train = optimizers.Adam(model.parameters(),
                                       lr=0.001,
-                                      betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)   # L2正则
+                                      betas=(0.9, 0.999), amsgrad=True)
     if flag == 1:
-        run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, epochs_train, best, optimizer=optimizer_train)
+        run(DataLoader, scale, train_x, train_y, model, train_dataloader, epochs_train, best, optimizer=optimizer_train)
     elif flag == 0:
-        run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, epochs_finetune, best, is_train=False)
+        run(DataLoader, scale, train_x, train_y, model, train_dataloader, epochs_finetune, best, is_train=False)
         compare_res(best)
-        # 怎么剔除异常点? 怎么使得每一个样本都刚好的逼近标准曲线？[膜厚设置值-实测>2*rate,考虑剔除]
+    elif flag == 2:
+        compare_res(best)
+        modified_X = np.load(r'./modified_x.npy')
+        modified = modified_X - X
+        print("origin X: {}".format(np.mean(X, axis=0)))
+        print("modified X: {}".format(np.mean(modified_X, axis=0)))
+        # 把修改前后的各个样本的7层膜厚值画出来,更直观
+        n, m = X.shape
+        x = [i for i in range(m)]
+        plt.title('compare thickness')
+        for i in range(n):
+            a = X[i, :]
+            b = modified_X[i, :]
+            plt.plot(x, a, color='cornflowerblue')
+            plt.plot(x, b, color='hotpink')
+            if i == 0:
+                plt.plot(x, a, color='cornflowerblue', label='origin')
+                plt.plot(x, b, color='lightpink', label='modified')
+            else:
+                plt.plot(x, a, color='cornflowerblue')
+                plt.plot(x, b, color='lightpink')
+        plt.legend()
+        plt.savefig("compare_x.png")
+        plt.show()
+
+        # 怎么剔除异常点? 怎么使得每一个样本都刚好的逼近标准曲线？
+        # 膜色曲线怎么计算得到lab值呢? xyz三个函数要提供下?
     elif flag == 3:
-        data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                          evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js).run()
         # data_info(X, Y)
-
-
+        data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
+                          evt_33number, base_data_dir, CC_dir, CX_dir).run()
+    else:
+        model.load_state_dict(torch.load("./mlp.pth"))
+        x = [380 + 5 * i for i in range(81)]
+        for ii, (input, org) in enumerate(val_dataloader):
+            model.eval()
+            pred = model(input)
+            y = pred.detach().numpy()
+            n = input.shape[0]
+            for i in range(n):
+                a = org[i, :]
+                b = y[i, :]
+                plt.plot(x, a, color='cornflowerblue')
+                plt.plot(x, b, color='hotpink')
+                if i == 0:
+                    plt.plot(x, a, color='cornflowerblue', label='origin')
+                    plt.plot(x, b, color='lightpink', label='mlp')
+                else:
+                    plt.plot(x, a, color='cornflowerblue')
+                    plt.plot(x, b, color='lightpink')
+            plt.legend()
+            plt.show()

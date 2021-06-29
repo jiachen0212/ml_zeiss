@@ -40,17 +40,6 @@ class MLP(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim):
         super().__init__()
 
-        '''
-        self.copy_x = copy_x(1, input_dim)
-        # 为copy_x层赋值
-        # 不太合理, 7维降到了1维,信息损失了..
-        X = np.mean(X, axis=0)
-        X = np.hstack((X[0], X[2:-1]))
-        X = np.reshape(X, (1, 5))
-        X = torch.from_numpy(X)
-        weight = X.to(torch.float32)
-        self.copy_x.weight = Parameter(weight)
-        '''
         # self.bn = nn.BatchNorm1d(num_features=7)
         self.l1 = nn.Linear(input_dim, hidden_dim)
         self.a1 = nn.ReLU()

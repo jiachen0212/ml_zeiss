@@ -2,9 +2,10 @@
 import json
 import os
 import shutil
-
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+
 import tsfresh
 
 '''
@@ -388,7 +389,7 @@ if __name__ == "__main__":
     refine_thick_lab = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\org_refine_thickness_lab_curve.json'
     oneone_evt_thick = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\oneone_evt_thickness.json'
     # check 膜厚设置、实测、rate值
-    rate_thickness_check(csv_dir)
+    # rate_thickness_check(csv_dir)
 
     # 异常样本剔除
     # bad_sample_clean(refine_thick_lab, oneone_evt_thick)
@@ -409,3 +410,12 @@ if __name__ == "__main__":
     #     for sensor_name, sensor_value in sensor.items():
     #         # tffresh(sensor_value)
     # tffresh()
+
+    js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick_hc_lab.json'
+    thick_hc_lab = json.load(open(js, 'r'))
+    for k, lab in thick_hc_lab.items():
+        print(k)
+        lab = [float(i) for i in lab]
+        x = [380+5*i for i in range(len(lab))]
+        plt.plot(x, lab, color='cornflowerblue', label='origin')
+        plt.show()
