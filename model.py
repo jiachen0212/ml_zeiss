@@ -61,8 +61,12 @@ def show_y_pred(y, gt_y=None, epo=None, best=None, flag='eval'):
         single_y = y[i, :]
         single_gt_y = gt_y[i, :]
         if single_gt_y[24] > 2:
-            plt.plot(x, single_gt_y, color='black', label='gt_bad')
-            plt.plot(x, single_y, color='red', label='mlp_bad')
+            if i == 0:
+                plt.plot(x, single_gt_y, color='pink', label='gt_bad')
+                plt.plot(x, single_y, color='black', label='mlp_bad')
+            else:
+                plt.plot(x, single_gt_y, color='pink')
+                plt.plot(x, single_y, color='black')
         else:
             if i == 0:
                 plt.plot(x, single_gt_y, color='cornflowerblue', label='origin')
@@ -70,6 +74,12 @@ def show_y_pred(y, gt_y=None, epo=None, best=None, flag='eval'):
             else:
                 plt.plot(x, single_gt_y, color='cornflowerblue')
                 plt.plot(x, single_y, color='moccasin')
+        # if i == 0:
+        #     plt.plot(x, single_gt_y, color='cornflowerblue', label='origin')
+        #     plt.plot(x, single_y, color='moccasin', label='mlp regression')
+        # else:
+        #     plt.plot(x, single_gt_y, color='cornflowerblue')
+        #     plt.plot(x, single_y, color='moccasin')
     if best:
         plt.plot(x, best, color='red', label='target')
     plt.legend()
