@@ -336,7 +336,7 @@ if __name__ == "__main__":
     scale = StandardScaler(with_mean=True, with_std=True)
     # 注意后面观察膜厚的变化,需要用到它的逆操作: X = scale.inverse_transform(X)
     X_ = scale.fit_transform(X)
-    train_x, test_x, train_y, test_y = train_test_split(X_, Y, test_size=0.2, random_state=2)
+    train_x, test_x, train_y, test_y = train_test_split(X_, Y, test_size=0.25, random_state=3)
     print("train size: {}".format(train_x.shape[0]))
     print("validation size: {}".format(test_x.shape[0]))
     train_dataloader = DataLoader((train_x, train_y), batch_size=batch_size, batch_first=False, device=device)
