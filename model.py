@@ -332,7 +332,7 @@ if __name__ == "__main__":
                          evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js,
                          thick14_hc3_sensor16_lab_js, thick14_hc3_sensor144_lab_js)
 
-    X[np.isnan(X)] = 0
+    X[np.isnan(X)] = 0.0
     batch_size = X.shape[0]
     input_dim = X.shape[-1]
     output_dim = Y.shape[-1]
