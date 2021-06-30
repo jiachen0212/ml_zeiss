@@ -67,6 +67,7 @@ def show_y_pred(y, gt_y=None, epo=None, best=None, flag='eval'):
             else:
                 plt.plot(x, single_gt_y, color='pink')
                 plt.plot(x, single_y, color='black')
+            # plt.legend()
         else:
             if i == 0:
                 plt.plot(x, single_gt_y, color='cornflowerblue', label='origin')
