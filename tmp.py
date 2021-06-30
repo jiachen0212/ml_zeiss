@@ -185,3 +185,57 @@ for num33, evt_list in number33_evts.items():
             f.write(''.join(str(i) + ' ' for i in thickness1) + ',')
             f.write(''.join(str(i) + ' ' for i in thickness2) + '\n')
             evt_cc.append(evt1.split('\\')[-1])
+
+
+
+ # check 膜厚设置、实测、rate值
+    # rate_thickness_check(csv_dir)
+
+    # 异常样本剔除
+    # bad_sample_clean(refine_thick_lab, oneone_evt_thick)
+
+    # step4.
+    # thickness-sensor
+    # thickness-lab
+    # thick_lab_file = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\refine_thickness_lab_curve.json'
+    # thick_lab = open(thick_lab_file, 'r')
+    # thick_lab_dict = json.load(thick_lab)
+    # thick_sensor_dict = json.load(open(thickness_sensor_file, 'r'))
+    # assert len(thick_sensor_dict) == len(thick_lab_dict)
+    # for thick, sensor in thick_sensor_dict.items():
+    #     # sensor is a dict: sensor[sensor_name]=sensor_value
+    #     for sensor_name, sensor_value in sensor.items():
+    #         # tffresh(sensor_value)
+
+    # js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick_hc_lab.json'
+    # thick_hc_lab = json.load(open(js, 'r'))
+    # for k, lab in thick_hc_lab.items():
+    #     print(k)
+    #     lab = [float(i) for i in lab]
+    #     x = [380+5*i for i in range(len(lab))]
+    #     plt.plot(x, lab, color='cornflowerblue', label='origin')
+    #     plt.show()
+
+    # file = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\机台文件说明.xlsx'
+    # wb = xlrd.open_workbook(file)
+    # data = wb.sheet_by_name('数据点')
+    # title = data.row_values(1)
+    # rows = data.nrows
+    # sensor_part_dict = dict()
+    # f = open(r'info_sensor.txt', 'w')
+    # for i in range(1, rows):
+    # sensor_part_dict[r'分段真空计'] = data.row_values(1)[:6]
+    # sensor_part_dict[r'炉膛压力'] = data.row_values(1)[6]
+    # sensor_part_dict[r'深冷机制冷温度'] = data.row_values(1)[7]
+    # sensor_part_dict[r'炉膛氧流量'] = data.row_values(1)[8:10]
+    # sensor_part_dict[r'膜厚及速率曲线'] = data.row_values(1)[10:14]
+    # sensor_part_dict[r'晶振频率'] = data.row_values(1)[14]
+    # sensor_part_dict[r'机台温度曲线'] = data.row_values(1)[15]
+    # sensor_part_dict[r'离子源相关曲线'] = data.row_values(1)[16:24]
+    # sensor_part_dict[r'深冷机曲线'] = data.row_values(1)[24]
+    # data = json.dumps(sensor_part_dict)
+    # with open(r'./info_sensor_dict.json', 'w', encoding="utf-8") as js_file:
+    #     js_file.write(data)
+    # for i in data.row_values(1):
+    #     f.write(i+',')
+

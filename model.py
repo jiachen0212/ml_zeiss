@@ -99,16 +99,18 @@ def plot_loss(loss):
 
 def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                   evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, data_json,
-                  thick14_hc3_sensor12_lab_js):
-    if not os.path.exists(thick14_hc3_sensor12_lab_js):
+                  thick14_hc3_sensor16_lab_js, thick14_hc3_sensor144_lab_js):
+    # if not os.path.exists(thick14_hc3_sensor144_lab_js):
+    if not os.path.exists(thick14_hc3_sensor16_lab_js):
         data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                           evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, data_json,
-                          thick14_hc3_sensor12_lab_js).run()
+                          thick14_hc3_sensor16_lab_js, thick14_hc3_sensor144_lab_js).run()
         print("data process done!")
     else:
         print("data has already processed! start mlp！！!")
 
-    with open(thick14_hc3_sensor12_lab_js, encoding="utf-8") as reader:
+    # with open(thick14_hc3_sensor144_lab_js, encoding="utf-8") as reader:
+    with open(thick14_hc3_sensor16_lab_js, encoding="utf-8") as reader:
         thicknesshc_curve = json.load(reader)
 
     Y = []
@@ -167,6 +169,8 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_datalo
             train_loss = 0
             print('-' * 10, 'epoch: {}'.format(epoch + 1), '-' * 10)
             for ii, (data, label) in enumerate(train_dataloader):
+                # print(data[0])
+                # print(label[0])
                 # print(data.shape, 'train')
                 input = Variable(data, requires_grad=False)
                 target = Variable(label)
@@ -318,20 +322,24 @@ if __name__ == "__main__":
     num33_hc_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\33_hc.json'
     number33_thick_js = r'D:\work\project\卡尔蔡司AR镀膜\ML_ZEISS\33number_thickness.json'
     thick_hc_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick_hc_lab.json'
-    # 加入12维sensor列时序特征
-    thick14_hc3_sensor12_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick14hc3sensor12_lab.json'
+    # 加入16维sensor列时序特征
+    thick14_hc3_sensor16_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick14hc3sensor16_lab.json'
+    # 加入128维 8step sensor时序特征
+    thick14_hc3_sensor144_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick14hc3sensor144_lab.json'
 
     # data process start
     X, Y = generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                          evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js,
-                         thick14_hc3_sensor12_lab_js)
+                         thick14_hc3_sensor16_lab_js, thick14_hc3_sensor144_lab_js)
+
+    X[np.isnan(X)] = 0
+    batch_size = X.shape[0]
+    input_dim = X.shape[-1]
+    output_dim = Y.shape[-1]
     hiden_dim = 50
     epochs_train = 3000
     # 调整膜厚值
     epochs_finetune = 1000
-    input_dim = X.shape[-1]
-    output_dim = Y.shape[-1]
-    batch_size = X.shape[0]
     # 数据规整化
     scale = StandardScaler(with_mean=True, with_std=True)
     # 注意后面观察膜厚的变化,需要用到它的逆操作: X = scale.inverse_transform(X)
@@ -357,5 +365,5 @@ if __name__ == "__main__":
     elif flag == 3:
         data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                           evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js,
-                          thick14_hc3_sensor12_lab_js).run()
+                          thick14_hc3_sensor16_lab_js, thick14_hc3_sensor144_lab_js).run()
         # data_info(X, Y)

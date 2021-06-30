@@ -1,6 +1,10 @@
 # coding=utf-8
-import os
 import json
+import os
+import numpy as np
+import pandas as pd
+import tsfresh as tsf
+
 
 def get_evt_sensor_dict(sensor_lines, process_lines):
     '''
@@ -62,7 +66,7 @@ def get_evt_sensor_dict(sensor_lines, process_lines):
     return step_time, running_times, sensor_values, sensor_names
 
 
-def get_time_sensor(evt_dict, running_times, sensor_values):
+def get_time_sensor(evt_dict, running_times, sensor_values, evtname):
     '''
     evt_dict: time: process
     sensor.csv: running_times, sensor_values
@@ -72,17 +76,17 @@ def get_time_sensor(evt_dict, running_times, sensor_values):
     evt_process_time = []
     for step_name, time in evt_dict.items():
         evt_process_time.append(time)
-    lens = len(evt_process_time)
+    lens = len(evt_process_time)   # lens == 9  step1~8 + end_line
+    assert lens == 9
     for i in range(lens - 1):
         start, end = evt_process_time[i], evt_process_time[i + 1]
+        sensor_start = running_times.index(start)
         try:
-            sensor_start = running_times.index(start)
             sensor_end = running_times.index(end)
         except:
-            continue
-        # 最后evt中的时间点,sensor.csv中可能找不到,数据就直接读取到sensor.csv的最后一行
-        if i == lens - 2:
+            # 最后evt中的时间点,sensor.csv中可能找不到,数据就直接读取到sensor.csv的最后一行
             sensor_end = len(running_times)
+
         # check time
         # print(dir_name, start, end)
         # print(running_times[sensor_start-1], running_times[sensor_start], \
@@ -183,7 +187,7 @@ def get_info_0630(path):
         # step2.
         # 时间和sensor_value关联:
         # evt中最后一行的时间在sensor中可能找不到,它是evt的end信息
-        time_sensor = get_time_sensor(evt_dict, running_times, sensor_values)
+        time_sensor = get_time_sensor(evt_dict, running_times, sensor_values, evtname)
 
         # step3.
         # process_name 和 sensor_value联系起来
@@ -194,26 +198,35 @@ def get_info_0630(path):
     return all_process_sensor, all_sensor_index_dict
 
 
-def process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js):
+def process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js, oneone_evt_thick_js):
     '''
     :param all_process_sensor: dir_name: each_dict
     each_dict: process_name: sensor_value_list
     sensor_index_dict: index, sensor_name
+    :param oneone_evt_thick_js: 用于精简csv_dict_js, 剔除匹配不到lab值的evt_file
     :return:
 
     '''
+    oneone_evt_lab = json.load(open(oneone_evt_thick_js, 'r'))
+    evts = list(oneone_evt_lab.keys())
+    evts = [i+'.CSV' for i in evts]
     csv_dict = dict()
+    # 蔡司提供的,重要sensor数据列
+    f = open(r'./info_sensor.txt', 'r')
+    sen_list = (f.readlines()[0]).split(',')[:-1]
     for dir_name, process_sensor in all_process_sensor.items():
-        sensor_name_list = all_sensor_name[dir_name]
-        dict_ = dict()
-        for process_name, sensor_value_list in process_sensor.items():
-            tmp_dict = dict()
-            for index, each_sensor in enumerate(sensor_name_list):
-                # 获取每一sensor参数的,所有列数据值. each_sensor_name: [value]
-                tmp_dict[each_sensor] = [row[index] for row in sensor_value_list]
-            dict_[process_name] = tmp_dict
-        csv_dict[dir_name] = dict_
-
+        if dir_name in evts:
+            sensor_name_list = all_sensor_name[dir_name]
+            dict_ = dict()
+            for process_name, sensor_value_list in process_sensor.items():
+                tmp_dict = dict()
+                for index, each_sensor in enumerate(sensor_name_list):
+                    if each_sensor in sen_list:
+                        # 获取每一sensor参数的,所有列数据值. each_sensor_name: [value]
+                        tmp_dict[each_sensor] = [row[index] for row in sensor_value_list]
+                dict_[process_name] = tmp_dict
+            csv_dict[dir_name] = dict_
+            assert len(dict_) == 8
     # {dir_name: {process_name: {each_sensor: [value_list]}}}
     # 落盘
     js = json.dumps(csv_dict)
@@ -222,19 +235,73 @@ def process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js):
     return csv_dict
 
 
-if __name__ == "__main__":
-    base_path = r"D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CC"
-    csv_dict_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\evtname_sensor_name_value.json'
+def times_feature(data):
+    f_sensor = []
+    ts = pd.Series(data)
+    ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
+    f_sensor.append(ae1[0][1])
+    # # 时序数据的平稳性
+    ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
+    f_sensor.append(ae2[0][1])
+    f_sensor.append(np.mean(data))
+    f_sensor.append(np.std(data, ddof=1))
+    return f_sensor
 
+
+def evt_128senftur(csv_dict_js, sub_sen_list):
+    print('read csv_dict_js ~')
+    evt_128sensor = dict()
+    evt_sen_name_value = json.load(open(csv_dict_js, 'r'))
+    for evtname, v in evt_sen_name_value.items():
+        evt_8steps_sensor_feature = []  # len=128  8*4*4
+        for process, sensor_dict in v.items():
+            for sen_n, sen_v in sensor_dict.items():
+                if sen_n in sub_sen_list:
+                    each_step_sensor_feature = times_feature([float(i) for i in sen_v])  # len=4
+                    evt_8steps_sensor_feature.extend(each_step_sensor_feature)
+        evt_128sensor[evtname] = ''.join(str(i)+',' for i in evt_8steps_sensor_feature)
+
+    return evt_128sensor
+
+
+def get8step_sensor_feature(base_path, csv_dict_js, thick14_hc3_sensor144_lab_js, thick14_hc3_sensor16_lab_js, oneone_evt_thick_js, thick7_lab_js, sub_sen_list):
+    print("add 8*4*4 part snesor feature!!! ")
     if not os.path.exists(csv_dict_js):
         all_process_sensor, all_sensor_name = get_info_0630(base_path)
-        evtname_sensor_name_value = process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js)
+        _ = process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js, oneone_evt_thick_js)
     else:
-        evt_sen_name_value = json.load(open(csv_dict_js, 'r'))
-    # for evtname, v in evtname_sensor_name_value.items():
-    #     for process, sensor_dict in v.items():
-    #         for s_name, s_value in sensor_dict.items():
+        evt_128sensor_dict = evt_128senftur(csv_dict_js, sub_sen_list)
+        evt_7thick = json.load(open(oneone_evt_thick_js, 'r'))
+        thick7_lab = json.load(open(thick7_lab_js, 'r'))
+        thick14hc3sensor16sensor128_lab = dict()
+        # key value 转换
+        thick_hc_sen16_lab = json.load(open(thick14_hc3_sensor16_lab_js, 'r'))
+        lab_thick_hc_sen16_lab = dict()
+        for k, v in thick_hc_sen16_lab.items():
+            lab_thick_hc_sen16_lab[''.join(str(i) for i in v)] = k  # lab：膜厚耗材sensor16
+        for evt, thick7 in evt_7thick.items():
+            lab = thick7_lab[thick7]
+            old_thick_hc_sensor = lab_thick_hc_sen16_lab[''.join(str(i) for i in lab)]   # 14+3+16维
+            new_thick_hc_sensor = old_thick_hc_sensor + evt_128sensor_dict[evt+'.CSV']
+            thick14hc3sensor16sensor128_lab[new_thick_hc_sensor] = lab
+        # 落盘
+        js = json.dumps(thick14hc3sensor16sensor128_lab)
+        with open(thick14_hc3_sensor144_lab_js, 'w') as js_:
+            js_.write(js)
 
+
+if __name__ == "__main__":
+
+    base_path = r"D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CC"
+    csv_dict_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\evtname_sensor_name_value.json'
+    oneone_evt_thick_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\oneone_evt_thickness.json'
+    sub_sen_list = ['ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_RATE', 'ACT_O1_QCMS_THICKNESS_CH1', 'ACT_O1_QCMS_RATE_CH1']
+    thick14_hc3_sensor16_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick14hc3sensor16_lab.json'
+    thick7_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\org_refine_thickness_lab_curve.json'
+    thick14_hc3_sensor144_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick14hc3sensor144_lab.json'
+
+    get8step_sensor_feature(base_path, csv_dict_js, thick14_hc3_sensor144_lab_js, thick14_hc3_sensor16_lab_js, oneone_evt_thick_js,
+                            thick7_lab_js)
 
 
 

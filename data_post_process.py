@@ -3,13 +3,13 @@ import json
 import os
 import random
 import shutil
-
 import numpy as np
 import pandas as pd
 import tsfresh as tsf
 import xlrd
 
 from check_data import rate_thickness_check
+from read_csvs import get8step_sensor_feature
 
 '''
     edited by chen-jia 2021.0625    
@@ -25,7 +25,7 @@ class data_post_process():
 
     def __init__(self, evt33, membrane, data_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                  evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js,
-                 thick14_hc3_sensor12_lab_js):
+                 thick14_hc3_sensor16_lab_js, thick14_hc3_sensor144_lab_js):
         '''
         :param MachineName-kinds:   ['1.56_DVS_CC', '1.56_DVS_CX', '1.6&1.67_DVS_CC', '1.6&1.67_DVS_CC_hpkf', '1.6&1.67_DVS_CX', '1.6&1.67_DVS_CX_hpkf', '1.6_DVSUN_CC']
 
@@ -70,7 +70,9 @@ class data_post_process():
         self.num33_hc_js = num33_hc_js
         self.number33_thick_js = number33_thick_js
         self.thick_hc_lab_js = thick_hc_lab_js
-        self.thick14_hc3_sensor12_lab_js = thick14_hc3_sensor12_lab_js
+        self.thick14_hc3_sensor16_lab_js = thick14_hc3_sensor16_lab_js
+        self.thick14_hc3_sensor144_lab_js = thick14_hc3_sensor144_lab_js
+
 
         # tmp 落盘文件
         self.evt_thick_js = r'./evt_thick.json'
@@ -78,6 +80,7 @@ class data_post_process():
         self.thick7_lab = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\org_refine_thickness_lab_curve.json'
         self.sen_list = ['ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_RATE', 'ACT_O1_QCMS_THICKNESS_CH1',
                          'ACT_O1_QCMS_RATE_CH1']
+        self.csv_dict_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\evtname_sensor_name_value.json'
 
     # def __call__(self, ):
     def run(self, ):
@@ -98,7 +101,10 @@ class data_post_process():
 
         # 添加膜厚,rate等sensor列的时序特征
         add_sensor_feature(self.data_dir, self.oneone_evt_thickness, self.thick7_lab, self.thick_hc_lab_js,
-                           self.sen_list, self.thick14_hc3_sensor12_lab_js)
+                           self.sen_list, self.thick14_hc3_sensor16_lab_js)
+        # 添加8个step的时序特征(len=128 8*4*4)
+        get8step_sensor_feature(self.data_dir, self.csv_dict_js, self.thick14_hc3_sensor144_lab_js, self.thick14_hc3_sensor16_lab_js, self.oneone_evt_thickness,
+                            self.thick7_lab, self.sen_list)
 
         # import check_data.py 中的函数实现部分数据清洗功能
         rate_thickness_check(self.data_dir)  # 膜厚设置\实测值diff与rate*2对比
@@ -503,21 +509,21 @@ def sensor_csv_feature(sen_list, data):
         ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
         f_sensor.append(ae2[0][1])
         # rate的 mean, std,
-        if 'RATE' in sen:
-            mean = np.mean([i for i in data[sen]][2:])
-            std = np.var([i for i in data[sen]][2:])
-            f_sensor.append(mean)
-            f_sensor.append(std)
+        # if 'RATE' in sen:
+        mean = np.mean([i for i in data[sen]][2:])
+        std = np.std([i for i in data[sen]][2:], ddof=1)  
+        f_sensor.append(mean)
+        f_sensor.append(std)
     # scale = StandardScaler(with_mean=True, with_std=True)
     # f_sensor = np.reshape(np.array(f_sensor), (-1, 12))
-    f_sensor = [round(i * 10, 3) for i in f_sensor]
+    f_sensor = [round(i, 3) for i in f_sensor]
     return ''.join(str(i) + ',' for i in f_sensor)
 
 
-def add_sensor_feature(data_dir, evt_7thick_js, thick7_lab_js, thick_hc_lab_js, sen_list, thick14_hc3_sensor12_lab_js):
+def add_sensor_feature(data_dir, evt_7thick_js, thick7_lab_js, thick_hc_lab_js, sen_list, thick14_hc3_sensor16_lab_js):
     evt_7thick = json.load(open(evt_7thick_js, 'r'))
     thick7_lab = json.load(open(thick7_lab_js, 'r'))
-    thick14hc3sensor12_lab = dict()
+    thick14hc3sensor16_lab = dict()
     lab_thick_hc = dict()
     thick_hc_lab = json.load(open(thick_hc_lab_js, 'r'))
     for thick_hc, lab in thick_hc_lab.items():
@@ -528,11 +534,11 @@ def add_sensor_feature(data_dir, evt_7thick_js, thick7_lab_js, thick_hc_lab_js, 
         # 读取sensor数据csv文件
         full_file_path = os.path.join(data_dir, evtname[3:] + '.CSV')
         data = pd.read_csv(full_file_path, error_bad_lines=False)
-        sensor12 = sensor_csv_feature(sen_list, data)
-        thick14_hc3_sensor12 = thick14_hc3 + sensor12
-        thick14hc3sensor12_lab[thick14_hc3_sensor12] = thick7_lab[thick7]
-    data = json.dumps(thick14hc3sensor12_lab)
-    with open(thick14_hc3_sensor12_lab_js, 'w') as js_file:
+        sensor16 = sensor_csv_feature(sen_list, data)
+        thick14_hc3_sensor16 = thick14_hc3 + sensor16
+        thick14hc3sensor16_lab[thick14_hc3_sensor16] = thick7_lab[thick7]
+    data = json.dumps(thick14hc3sensor16_lab)
+    with open(thick14_hc3_sensor16_lab_js, 'w') as js_file:
         js_file.write(data)
 
 
