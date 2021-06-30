@@ -131,17 +131,13 @@ def tffresh():
     extracted_features = extract_features(f, column_id="id", column_sort="time")
 '''
 
-
 import json
+
 f = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\refine_thickness_lab_curve.json'
 with open(f, encoding="utf-8") as reader:
     dict_ = json.load(reader)
     for k, v in dict_.items():
         print(k)
-
-
-
-
 
 evt33 = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#膜色文件与EVT文件对应表.xlsx'
 wb = xlrd.open_workbook(evt33)
@@ -189,4 +185,3 @@ for num33, evt_list in number33_evts.items():
             f.write(''.join(str(i) + ' ' for i in thickness1) + ',')
             f.write(''.join(str(i) + ' ' for i in thickness2) + '\n')
             evt_cc.append(evt1.split('\\')[-1])
-

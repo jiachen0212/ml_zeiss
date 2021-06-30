@@ -161,7 +161,6 @@ def get_file_sensor(csv_dir, sensores, js_name):
 
 
 def get_evt_thickness(csv_dir, miss_, evt_thickness_val, evt_process_time):
-    # check下是不是所有的evt.csv都有膜厚参数
     evt_thickness = dict()
     evt_process = dict()
     files = os.listdir(csv_dir)
