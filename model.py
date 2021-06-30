@@ -99,18 +99,20 @@ def plot_loss(loss):
 
 def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                   evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, data_json,
-                  thick14_hc3_sensor16_lab_js, thick14_hc3_sensor144_lab_js):
-    # if not os.path.exists(thick14_hc3_sensor144_lab_js):
-    if not os.path.exists(thick14_hc3_sensor16_lab_js):
+                  thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js, flag=0):  # flag=0,默认选最新最多的特征
+
+    # 可备选的,使用的json数据,分别有: 135, 33, 97 dims-feature
+    X_list = [feature135_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js]
+    tmp = X_list[flag]
+    if not os.path.exists(tmp):
         data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                           evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, data_json,
-                          thick14_hc3_sensor16_lab_js, thick14_hc3_sensor144_lab_js).run()
+                          thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js).run()
         print("data process done!")
     else:
         print("data has already processed! start mlp！！!")
 
-    # with open(thick14_hc3_sensor144_lab_js, encoding="utf-8") as reader:
-    with open(thick14_hc3_sensor16_lab_js, encoding="utf-8") as reader:
+    with open(tmp, encoding="utf-8") as reader:
         thicknesshc_curve = json.load(reader)
 
     Y = []
@@ -294,7 +296,7 @@ def data_info(X, Y):
 
 if __name__ == "__main__":
 
-    # 1train or 0modified_thickness or 3generate_data
+    # 1train or 0modified_thickness
     flag = 1
     # get_important_x()
 
@@ -324,15 +326,17 @@ if __name__ == "__main__":
     thick_hc_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick_hc_lab.json'
     # 加入16维sensor列时序特征
     thick14_hc3_sensor16_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick14hc3sensor16_lab.json'
-    # 加入128维 8step sensor时序特征
-    thick14_hc3_sensor144_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick14hc3sensor144_lab.json'
+    # 加入64维 8step sensor时序特征
+    thick14_hc3_sensor64_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick14hc3sensor64_lab.json'
+    # 再加入19列有意义数据的38维特征
+    feature135_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\feature135_lab.json'
 
     # data process start
     X, Y = generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                          evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js,
-                         thick14_hc3_sensor16_lab_js, thick14_hc3_sensor144_lab_js)
+                         thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js)
 
-    X[np.isnan(X)] = 0.0
+    # X[np.isnan(X)] = 0.0
     batch_size = X.shape[0]
     input_dim = X.shape[-1]
     output_dim = Y.shape[-1]
@@ -363,7 +367,4 @@ if __name__ == "__main__":
         compare_res(best)
         # 怎么剔除异常点? 怎么使得每一个样本都刚好的逼近标准曲线？[膜厚设置值-实测>2*rate,考虑剔除]
     elif flag == 3:
-        data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                          evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js,
-                          thick14_hc3_sensor16_lab_js, thick14_hc3_sensor144_lab_js).run()
-        # data_info(X, Y)
+        data_info(X, Y)

@@ -2,7 +2,7 @@
 import json
 import os
 import shutil
-
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import tsfresh as tsf
@@ -350,73 +350,149 @@ def bad_sample_clean(thickness_js, evt_thick):
 
 
 
-    def sensor_csv_feature(sen_list, data):
-        # 一个data/evt样本输入进来,输出特征维度: 4*2+2*2=12维
-        f_sensor = []
-        for sen in sen_list:
-            col = [i for i in data[sen]]
-            ts = pd.Series(col)
-            # 时序数据的的周期性、不可预测性和波动性
-            ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
-            f_sensor.append(ae1[0][1])
-            # # 时序数据的平稳性
-            ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
-            f_sensor.append(ae2[0][1])
-            # rate的 mean, std,
-            if 'RATE' in sen:
-                mean = np.mean([i for i in data[sen]][2:])
-                std = np.var([i for i in data[sen]][2:])
-                f_sensor.append(mean)
-                f_sensor.append(std)
-        # scale = StandardScaler(with_mean=True, with_std=True)
-        # f_sensor = np.reshape(np.array(f_sensor), (-1, 12))
-        f_sensor = [round(i * 10, 3) for i in f_sensor]
-        return ''.join(str(i) + ',' for i in f_sensor)
+def sensor_csv_feature(sen_list, data):
+    # 一个data/evt样本输入进来,输出特征维度: 4*2+2*2=12维
+    f_sensor = []
+    for sen in sen_list:
+        col = [i for i in data[sen]]
+        ts = pd.Series(col)
+        # 时序数据的的周期性、不可预测性和波动性
+        ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
+        f_sensor.append(ae1[0][1])
+        # # 时序数据的平稳性
+        ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
+        f_sensor.append(ae2[0][1])
+        # rate的 mean, std,
+        if 'RATE' in sen:
+            mean = np.mean([i for i in data[sen]][2:])
+            std = np.var([i for i in data[sen]][2:])
+            f_sensor.append(mean)
+            f_sensor.append(std)
+    # scale = StandardScaler(with_mean=True, with_std=True)
+    # f_sensor = np.reshape(np.array(f_sensor), (-1, 12))
+    f_sensor = [round(i * 10, 3) for i in f_sensor]
+    return ''.join(str(i) + ',' for i in f_sensor)
 
 
-    def add_sensor_feature(data_dir, evt_7thick_js, thick7_lab_js, thick_hc_lab_js, sen_list,
-                           thick14_hc3_sensor16_lab_js):
-        evt_7thick = json.load(open(evt_7thick_js, 'r'))
-        thick7_lab = json.load(open(thick7_lab_js, 'r'))
-        thick14hc3sensor12_lab = dict()
-        lab_thick_hc = dict()
-        thick_hc_lab = json.load(open(thick_hc_lab_js, 'r'))
-        for thick_hc, lab in thick_hc_lab.items():
-            lab_thick_hc[''.join(str(i) for i in lab)] = thick_hc
-        for evtname, thick7 in evt_7thick.items():
-            # 等待补充的17维feature
-            thick14_hc3 = lab_thick_hc[''.join(str(i) for i in thick7_lab[thick7])]
-            # 读取sensor数据csv文件
-            full_file_path = os.path.join(data_dir, evtname[3:] + '.CSV')
-            data = pd.read_csv(full_file_path, error_bad_lines=False)
-            sensor12 = sensor_csv_feature(sen_list, data)
-            thick14_hc3_sensor12 = thick14_hc3 + sensor12
-            thick14hc3sensor12_lab[thick14_hc3_sensor12] = thick7_lab[thick7]
-        data = json.dumps(thick14hc3sensor12_lab)
-        with open(thick14_hc3_sensor16_lab_js, 'w') as js_file:
-            js_file.write(data)
+def add_sensor_feature(data_dir, evt_7thick_js, thick7_lab_js, thick_hc_lab_js, sen_list,
+                       thick14_hc3_sensor16_lab_js):
+    evt_7thick = json.load(open(evt_7thick_js, 'r'))
+    thick7_lab = json.load(open(thick7_lab_js, 'r'))
+    thick14hc3sensor12_lab = dict()
+    lab_thick_hc = dict()
+    thick_hc_lab = json.load(open(thick_hc_lab_js, 'r'))
+    for thick_hc, lab in thick_hc_lab.items():
+        lab_thick_hc[''.join(str(i) for i in lab)] = thick_hc
+    for evtname, thick7 in evt_7thick.items():
+        # 等待补充的17维feature
+        thick14_hc3 = lab_thick_hc[''.join(str(i) for i in thick7_lab[thick7])]
+        # 读取sensor数据csv文件
+        full_file_path = os.path.join(data_dir, evtname[3:] + '.CSV')
+        data = pd.read_csv(full_file_path, error_bad_lines=False)
+        sensor12 = sensor_csv_feature(sen_list, data)
+        thick14_hc3_sensor12 = thick14_hc3 + sensor12
+        thick14hc3sensor12_lab[thick14_hc3_sensor12] = thick7_lab[thick7]
+    data = json.dumps(thick14hc3sensor12_lab)
+    with open(thick14_hc3_sensor16_lab_js, 'w') as js_file:
+        js_file.write(data)
 
-    def sensor_feature(sen_list, data, title):
-        # data 是excel数据文件
-        # 一个data/evt样本输入进来,输出特征维度: 4*2+2*2=12维
-        f_sensor = []
-        for sen in sen_list:
-            index = title.index(sen)
-            col = data.col_values(index)[2:]
-            ts = pd.Series(col)  # 数据x假设已经获取
-            # 时序数据的的周期性、不可预测性和波动性
-            ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
-            f_sensor.append(ae1[0][1])
-            # # 时序数据的平稳性
-            ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
-            f_sensor.append(ae2[0][1])
-            # rate的 mean, std,
-            if 'RATE' in sen:
-                mean = np.mean([data.col_values(index)[2:]])
-                std = np.var([data.col_values(index)[2:]])
-                f_sensor.append(mean)
-                f_sensor.append(std)
-        return f_sensor
+def sensor_feature(sen_list, data, title):
+    # data 是excel数据文件
+    # 一个data/evt样本输入进来,输出特征维度: 4*2+2*2=12维
+    f_sensor = []
+    for sen in sen_list:
+        index = title.index(sen)
+        col = data.col_values(index)[2:]
+        ts = pd.Series(col)  # 数据x假设已经获取
+        # 时序数据的的周期性、不可预测性和波动性
+        ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
+        f_sensor.append(ae1[0][1])
+        # # 时序数据的平稳性
+        ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
+        f_sensor.append(ae2[0][1])
+        # rate的 mean, std,
+        if 'RATE' in sen:
+            mean = np.mean([data.col_values(index)[2:]])
+            std = np.var([data.col_values(index)[2:]])
+            f_sensor.append(mean)
+            f_sensor.append(std)
+    return f_sensor
+
+
+def backup_usful_sensor_feature():
+    tmp = open(r'./info_sensor_nothick.txt', 'w')
+    f = os.path.join(csv_dir, r'21051026.CSV')
+    sensor_csv = pd.read_csv(f, error_bad_lines=False)
+    ok_sen_list = ['ACT_V1_IONIVAC_CH', 'ACT_V1_THERMOVAC_CH', 'ACT_V1_THERMOVAC_PREVLINE', 'ACT_V1_THERMOVAC_HP', 'ACT_V1_PRESSURE_CH', 'AI_V1_POLYCOLD_TEMP', 'ACTN_F1_FLOW1', 'ACT_F1_FLOW1', 'ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_RATE', 'ACT_O1_QCMS_THICKNESS_CH1', 'ACT_O1_QCMS_RATE_CH1', 'STAT_LT_CRYSTAL_CH1', 'ACT_HEATER2_TEMPERATURE', 'ACT_Q10_CURRENT_ANODE', 'ACT_Q10_VOLTAGE_ANODE', 'ACT_Q10_CURRENT_CATHODE', 'ACT_Q10_VOLTAGE_CATHODE', 'ACT_Q10_CURRENT_NEUTRAL', 'ACT_Q10_ION_FLOW1', 'ACT_Q10_ION_FLOW2', 'STA_Q10_IONSOURCE_SHUTTER_IOP', 'ACT_V1_MEISSNER_POLYCOLDTEMP']
+    ok_sen_list = [i for i in ok_sen_list if i not in sen_list]
+    for a in ok_sen_list:
+        tmp.write(a+',')
+    f = []
+    for sen_n in ok_sen_list:
+        try:
+            col = sensor_csv[sen_n]
+        except:
+            continue
+        # ok_sen_list.append(sen_n)
+        col_data = [i for i in col]
+        x = [i for i in range(len(col_data))]
+        # plt.title(sen_n)
+        # plt.plot(x, col_data)
+        # plt.savefig(os.path.join(r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\重要snesor列数据曲线', sen_n))
+        # plt.show()
+        ts = pd.Series(col)
+        ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
+        f.append(ae1[0][1])
+        # ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
+        ae3 = tsf.feature_extraction.feature_calculators.binned_entropy(ts, 10)   # 信息熵,可以考虑加入
+        f.append(ae3)
+
+
+
+def usful_sensor_feature(sensor_csv):
+    sensor_csv = pd.read_csv(sensor_csv, error_bad_lines=False)
+    tmp = open(r'./info_sensor_nothick.txt', 'r')
+    ok_sen_list = tmp.readlines()[0].split(',')[:-1]
+    f = []
+    for sen_n in ok_sen_list:
+        col = sensor_csv[sen_n]
+        col_data = [i for i in col]
+        ts = pd.Series(col_data)
+        ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
+        f.append(ae1[0][1])
+        # ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
+        ae3 = tsf.feature_extraction.feature_calculators.binned_entropy(ts, 10)   # 信息熵,可以考虑加入
+        f.append(ae3)
+    return ''.join(str(i)+',' for i in f)
+
+
+
+def all_usful_sensor_except_thickness(csv_dir, org_refine_thick_lab, oneone_evt_thick, thick14_hc3_sensor64_lab_js, feature135_lab_js):
+    '''
+    整合出来已经处理的thickness、rate这四列之外的,有意义数据列feature
+    :return: 19*2=38维特征
+
+    '''
+    thick7_lab = json.load(open(org_refine_thick_lab, 'r'))
+    evt_7thick = json.load(open(oneone_evt_thick, 'r'))
+    feature135_lab = dict()
+    # key value 转换
+    feature97_lab = json.load(open(thick14_hc3_sensor64_lab_js, 'r'))
+    lab_feature97 = dict()
+    for k, v in feature97_lab.items():
+        lab_feature97[''.join(str(i) for i in v)] = k   # lab:feature97
+    for evt, thick7 in evt_7thick.items():
+        feature38_sensor = usful_sensor_feature(os.path.join(csv_dir, evt[3:] + '.CSV'))
+        lab = thick7_lab[thick7]
+        old_thick_hc_sensor = lab_feature97[''.join(str(i) for i in lab)]
+        new_thick_hc_sensor = old_thick_hc_sensor + feature38_sensor
+        feature135_lab[new_thick_hc_sensor] = lab
+
+    # 落盘
+    js = json.dumps(feature135_lab)
+    with open(feature135_lab_js, 'w') as js_:
+        js_.write(js)
+    print("got {}!!".format(feature135_lab_js))
 
 
 
@@ -446,8 +522,9 @@ if __name__ == "__main__":
         get_thick_sensor(evt_thickness, thickness_sensor_file, file_sensor_dict)
 
     # refine thick_lab
-    refine_thick_lab = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\org_refine_thickness_lab_curve.json'
+    refine_thick_lab = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\org_refine_thickness_lab_curve.json'
     oneone_evt_thick = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\oneone_evt_thickness.json'
+    feature135_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\feature135_lab.json'
 
     '''
     ar_coefficient  自回归系数: 衡量时序数据的的周期性、不可预测性和波动性
@@ -460,15 +537,14 @@ if __name__ == "__main__":
     thick7_lab = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\org_refine_thickness_lab_curve.json'
     thick_hc_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick_hc_lab.json'
     data_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CC'
-    thick14_hc3_sensor16_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick14hc3sensor16_lab.json'
+    thick14_hc3_sensor64_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick14hc3sensor64_lab.json'
     sen_list = ['ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_RATE', 'ACT_O1_QCMS_THICKNESS_CH1', 'ACT_O1_QCMS_RATE_CH1']
     # add_sensor_feature(data_dir, evt_7thick, thick7_lab, thick_hc_lab_js, sen_list, thick14_hc3_sensor16_lab_js)
+    all_usful_sensor_except_thickness(csv_dir, refine_thick_lab, oneone_evt_thick, thick14_hc3_sensor64_lab_js, feature135_lab_js)
 
-    # 可视化sensor各个列的趋势情况
-    f = open(r'info_sensor.txt', 'r')
-    all_sen_list = (f.readlines()[0]).split(',')[:-1]
-    f = os.path.join(csv_dir, r'21051026.CSV')
-    sensor_csv = open(f, 'r')
-    # for sen_n in all_sen_list:
+
+
+
+
 
 

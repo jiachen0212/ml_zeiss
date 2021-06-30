@@ -236,58 +236,61 @@ def process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js, 
 
 
 def times_feature(data):
+    print('8 steps, only get mean and std, no zqx-feature!')
     f_sensor = []
-    ts = pd.Series(data)
-    ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
-    f_sensor.append(ae1[0][1])
-    # # 时序数据的平稳性
-    ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
-    f_sensor.append(ae2[0][1])
+    # ts = pd.Series(data)
+    # ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
+    # f_sensor.append(ae1[0][1])
+    # # # 时序数据的平稳性
+    # ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
+    # f_sensor.append(ae2[0][1])
     f_sensor.append(np.mean(data))
     f_sensor.append(np.std(data, ddof=1))
     return f_sensor
 
 
-def evt_128senftur(csv_dict_js, sub_sen_list):
-    print('read csv_dict_js ~')
-    evt_128sensor = dict()
+def evt_64sensor(csv_dict_js, sub_sen_list):
+    print('get 8steps features ~')
+    evt_64sensor = dict()
     evt_sen_name_value = json.load(open(csv_dict_js, 'r'))
     for evtname, v in evt_sen_name_value.items():
-        evt_8steps_sensor_feature = []  # len=128  8*4*4
+        evt_8steps_sensor_feature = []  # len=64  8*4*2
         for process, sensor_dict in v.items():
             for sen_n, sen_v in sensor_dict.items():
                 if sen_n in sub_sen_list:
                     each_step_sensor_feature = times_feature([float(i) for i in sen_v])  # len=4
                     evt_8steps_sensor_feature.extend(each_step_sensor_feature)
-        evt_128sensor[evtname] = ''.join(str(i)+',' for i in evt_8steps_sensor_feature)
+        evt_64sensor[evtname] = ''.join(str(i)+',' for i in evt_8steps_sensor_feature)
 
-    return evt_128sensor
+    return evt_64sensor
 
 
 def get8step_sensor_feature(base_path, csv_dict_js, thick14_hc3_sensor144_lab_js, thick14_hc3_sensor16_lab_js, oneone_evt_thick_js, thick7_lab_js, sub_sen_list):
-    print("add 8*4*4 part snesor feature!!! ")
+    print("add 8*4*2 part snesor feature!!! mean and std ~")
     if not os.path.exists(csv_dict_js):
         all_process_sensor, all_sensor_name = get_info_0630(base_path)
         _ = process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js, oneone_evt_thick_js)
-    else:
-        evt_128sensor_dict = evt_128senftur(csv_dict_js, sub_sen_list)
-        evt_7thick = json.load(open(oneone_evt_thick_js, 'r'))
-        thick7_lab = json.load(open(thick7_lab_js, 'r'))
-        thick14hc3sensor16sensor128_lab = dict()
-        # key value 转换
-        thick_hc_sen16_lab = json.load(open(thick14_hc3_sensor16_lab_js, 'r'))
-        lab_thick_hc_sen16_lab = dict()
-        for k, v in thick_hc_sen16_lab.items():
-            lab_thick_hc_sen16_lab[''.join(str(i) for i in v)] = k  # lab：膜厚耗材sensor16
-        for evt, thick7 in evt_7thick.items():
-            lab = thick7_lab[thick7]
-            old_thick_hc_sensor = lab_thick_hc_sen16_lab[''.join(str(i) for i in lab)]   # 14+3+16维
-            new_thick_hc_sensor = old_thick_hc_sensor + evt_128sensor_dict[evt+'.CSV']
-            thick14hc3sensor16sensor128_lab[new_thick_hc_sensor] = lab
-        # 落盘
-        js = json.dumps(thick14hc3sensor16sensor128_lab)
-        with open(thick14_hc3_sensor144_lab_js, 'w') as js_:
-            js_.write(js)
+
+    evt_64sensor_dict = evt_64sensor(csv_dict_js, sub_sen_list)
+    evt_7thick = json.load(open(oneone_evt_thick_js, 'r'))
+    thick7_lab = json.load(open(thick7_lab_js, 'r'))
+    thick14hc3sensor16sensor64_lab = dict()
+    # key value 转换
+    thick_hc_sen16_lab = json.load(open(thick14_hc3_sensor16_lab_js, 'r'))
+    lab_thick_hc_sen16_lab = dict()
+    for k, v in thick_hc_sen16_lab.items():
+        lab_thick_hc_sen16_lab[''.join(str(i) for i in v)] = k  # lab：膜厚耗材sensor16
+    for evt, thick7 in evt_7thick.items():
+        lab = thick7_lab[thick7]
+        old_thick_hc_sensor = lab_thick_hc_sen16_lab[''.join(str(i) for i in lab)]   # 14+3+16维
+        new_thick_hc_sensor = old_thick_hc_sensor + evt_64sensor_dict[evt+'.CSV']
+        thick14hc3sensor16sensor64_lab[new_thick_hc_sensor] = lab
+    # 落盘
+    js = json.dumps(thick14hc3sensor16sensor64_lab)
+    with open(thick14_hc3_sensor144_lab_js, 'w') as js_:
+        js_.write(js)
+
+    print("got {}!".format(thick14_hc3_sensor144_lab_js))
 
 
 if __name__ == "__main__":

@@ -25,7 +25,7 @@ class data_post_process():
 
     def __init__(self, evt33, membrane, data_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                  evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js,
-                 thick14_hc3_sensor16_lab_js, thick14_hc3_sensor144_lab_js):
+                 thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, feature135_lab_js):
         '''
         :param MachineName-kinds:   ['1.56_DVS_CC', '1.56_DVS_CX', '1.6&1.67_DVS_CC', '1.6&1.67_DVS_CC_hpkf', '1.6&1.67_DVS_CX', '1.6&1.67_DVS_CX_hpkf', '1.6_DVSUN_CC']
 
@@ -71,8 +71,8 @@ class data_post_process():
         self.number33_thick_js = number33_thick_js
         self.thick_hc_lab_js = thick_hc_lab_js
         self.thick14_hc3_sensor16_lab_js = thick14_hc3_sensor16_lab_js
-        self.thick14_hc3_sensor144_lab_js = thick14_hc3_sensor144_lab_js
-
+        self.thick14_hc3_sensor80_lab_js = thick14_hc3_sensor80_lab_js
+        self.feature135_lab_js = feature135_lab_js
 
         # tmp 落盘文件
         self.evt_thick_js = r'./evt_thick.json'
@@ -103,8 +103,10 @@ class data_post_process():
         add_sensor_feature(self.data_dir, self.oneone_evt_thickness, self.thick7_lab, self.thick_hc_lab_js,
                            self.sen_list, self.thick14_hc3_sensor16_lab_js)
         # 添加8个step的时序特征(len=128 8*4*4)
-        get8step_sensor_feature(self.data_dir, self.csv_dict_js, self.thick14_hc3_sensor144_lab_js, self.thick14_hc3_sensor16_lab_js, self.oneone_evt_thickness,
+        get8step_sensor_feature(self.data_dir, self.csv_dict_js, self.thick14_hc3_sensor80_lab_js, self.thick14_hc3_sensor16_lab_js, self.oneone_evt_thickness,
                             self.thick7_lab, self.sen_list)
+        # 再加入19列有意义数据的38维特征
+        all_usful_sensor_except_thickness(self.data_dir, self.thick7_lab, self.oneone_evt_thickness, self.thick14_hc3_sensor80_lab_js, self.feature135_lab_js)
 
         # import check_data.py 中的函数实现部分数据清洗功能
         rate_thickness_check(self.data_dir)  # 膜厚设置\实测值diff与rate*2对比
@@ -542,6 +544,51 @@ def add_sensor_feature(data_dir, evt_7thick_js, thick7_lab_js, thick_hc_lab_js, 
         js_file.write(data)
 
 
+def usful_sensor_feature(sensor_csv):
+    sensor_csv = pd.read_csv(sensor_csv, error_bad_lines=False)
+    tmp = open(r'./info_sensor_nothick.txt', 'r')
+    ok_sen_list = tmp.readlines()[0].split(',')[:-1]
+    f = []
+    for sen_n in ok_sen_list:
+        col = sensor_csv[sen_n]
+        col_data = [i for i in col]
+        ts = pd.Series(col_data)
+        ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
+        f.append(ae1[0][1])
+        # ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
+        ae3 = tsf.feature_extraction.feature_calculators.binned_entropy(ts, 10)   # 信息熵,可以考虑加入
+        f.append(ae3)
+    return ''.join(str(i)+',' for i in f)
+
+
+def all_usful_sensor_except_thickness(csv_dir, org_refine_thick_lab, oneone_evt_thick, thick14_hc3_sensor64_lab_js, feature135_lab_js):
+    '''
+    整合出来已经处理的thickness、rate这四列之外的,有意义数据列feature
+    :return: 19*2=38维特征
+
+    '''
+    thick7_lab = json.load(open(org_refine_thick_lab, 'r'))
+    evt_7thick = json.load(open(oneone_evt_thick, 'r'))
+    feature135_lab = dict()
+    # key value 转换
+    feature97_lab = json.load(open(thick14_hc3_sensor64_lab_js, 'r'))
+    lab_feature97 = dict()
+    for k, v in feature97_lab.items():
+        lab_feature97[''.join(str(i) for i in v)] = k   # lab:feature97
+    for evt, thick7 in evt_7thick.items():
+        feature38_sensor = usful_sensor_feature(os.path.join(csv_dir, evt[3:] + '.CSV'))
+        lab = thick7_lab[thick7]
+        old_thick_hc_sensor = lab_feature97[''.join(str(i) for i in lab)]
+        new_thick_hc_sensor = old_thick_hc_sensor + feature38_sensor
+        feature135_lab[new_thick_hc_sensor] = lab
+
+    # 落盘
+    js = json.dumps(feature135_lab)
+    with open(feature135_lab_js, 'w') as js_:
+        js_.write(js)
+    print("got {}!!".format(feature135_lab_js))
+    
+    
 if __name__ == "__main__":
     base_data_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件'
     file1 = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#膜色文件与EVT文件对应表.xlsx'

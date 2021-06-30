@@ -131,6 +131,7 @@ def tffresh():
     extracted_features = extract_features(f, column_id="id", column_sort="time")
 '''
 
+'''
 import json
 
 f = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\refine_thickness_lab_curve.json'
@@ -215,12 +216,13 @@ for num33, evt_list in number33_evts.items():
     #     x = [380+5*i for i in range(len(lab))]
     #     plt.plot(x, lab, color='cornflowerblue', label='origin')
     #     plt.show()
-
+    # import xlrd
     # file = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\机台文件说明.xlsx'
     # wb = xlrd.open_workbook(file)
     # data = wb.sheet_by_name('数据点')
     # title = data.row_values(1)
-    # rows = data.nrows
+    # cols = data.ncols
+    # print(cols)
     # sensor_part_dict = dict()
     # f = open(r'info_sensor.txt', 'w')
     # for i in range(1, rows):
@@ -239,3 +241,13 @@ for num33, evt_list in number33_evts.items():
     # for i in data.row_values(1):
     #     f.write(i+',')
 
+'''
+
+import xlrd
+
+file = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\机台文件说明.xlsx'
+wb = xlrd.open_workbook(file)
+data = wb.sheet_by_name('数据点')
+title = data.row_values(1)
+cols = data.ncols
+print(cols)
