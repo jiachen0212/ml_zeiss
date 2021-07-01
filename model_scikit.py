@@ -55,24 +55,28 @@ def skmlp(X, Y):
     dataXS = scale.fit_transform(X)
     dims = Y.shape[1]
     y_res = []
-    for i in range(dims):
-        Y_data = Y[:, i]
-        train_x, test_x, train_y, test_y = train_test_split(dataXS, Y_data, test_size=0.3, random_state=2)
-        y_pred = mlp_fun(train_x, train_y)
-        #     y_res.append(np.mean(y_pred))   # 92个训练样本的回归值取mean,return进result.
-        # plot_curve(y_res, dims)
-        y_res.append(y_pred)
-    sample_num = len(y_res[0])
+    y_train = []
     plt.title('regression lab curve')
     plt.xlabel("Wave-length")
     plt.ylabel("Reflectance")
     x = [380 + 5 * i for i in range(dims)]
+    for i in range(dims):
+        Y_data = Y[:, i]
+        train_x, test_x, train_y, test_y = train_test_split(dataXS, Y_data, test_size=0.3, random_state=2)
+        y_pred = mlp_fun(train_x, train_y)
+        #     y_res.append(np.mean(y_pred))
+        # plot_curve(y_res, dims)
+        y_res.append(y_pred)
+        y_train.append(train_y)
+    sample_num = len(y_res[0])
     mse = []
     for i in range(sample_num):
         single_y = [a[i] for a in y_res]
+        y_gt = [a[i] for a in y_train]
         # 计算 y_res 和 Y 的误差
         mse.append(calculate_diff(single_y, Y[i, :]))
-        plt.plot(x, single_y, color=colors[i])
+        plt.plot(x, single_y, color='cornflowerblue')
+        plt.plot(x, y_gt, color='pink')
     plt.savefig("lab_curve.png")
     plt.show()
     print(
@@ -97,7 +101,7 @@ if __name__ == "__main__":
     file1 = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#膜色文件与EVT文件对应表.xlsx'
     file2 = r'D:\work\project\卡尔蔡司AR镀膜\文档s\蔡司资料0615\膜色数据.xlsx'
     evt_cc_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CC'
-    data_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thickness_lab_curve.json'
+    data_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\org_refine_thickness_lab_curve.json'
     if not os.path.exists(data_js):
         data_post_process(file1, file2, evt_cc_dir, data_js).run()
         print("data process done!")
