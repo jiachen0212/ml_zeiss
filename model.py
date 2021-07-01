@@ -100,7 +100,8 @@ def plot_loss(loss):
 
 def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                   evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, data_json,
-                  thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js, flag=0):  # flag=0,默认选最新最多的特征
+                  thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js,
+                  flag=0):  # flag=0,默认选最新最多的特征
 
     # 可备选的,使用的json数据,分别有: 135, 33, 97 dims-feature
     X_list = [feature135_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js]
@@ -118,7 +119,7 @@ def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_j
 
     Y = []
     for thicknesshc, lab_curve in thicknesshc_curve.items():
-        Y.append(thicknesshc_curve[thicknesshc])
+        Y.append(lab_curve)
     X = list(thicknesshc_curve.keys())
     X = [i[:-1] for i in X]
     X = [i.split(',') for i in X]
