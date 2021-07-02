@@ -3,6 +3,7 @@ import json
 import os
 import random
 import shutil
+
 import numpy as np
 import pandas as pd
 import tsfresh as tsf
@@ -24,8 +25,8 @@ class data_post_process():
     '''
 
     def __init__(self, evt33, membrane, data_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                 evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js,
-                 thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, feature135_lab_js):
+                 evt_33number, base_data_dir, CC_dir, CX_dir, bad_js, num33_hc_js, number33_thick_js, thick_hc_lab_js,
+                 thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, feature135_lab_js, flag=0):
         '''
         :param MachineName-kinds:   ['1.56_DVS_CC', '1.56_DVS_CX', '1.6&1.67_DVS_CC', '1.6&1.67_DVS_CC_hpkf', '1.6&1.67_DVS_CX', '1.6&1.67_DVS_CX_hpkf', '1.6_DVSUN_CC']
 
@@ -65,6 +66,7 @@ class data_post_process():
         self.refine_data_json = refine_data_json
         self.oneone_evt_thickness = oneone_evt_thickness
         self.evt_33number = evt_33number
+        self.bad_js = bad_js
         self.CC_dir = CC_dir
         self.CX_dir = CX_dir
         self.num33_hc_js = num33_hc_js
@@ -73,119 +75,124 @@ class data_post_process():
         self.thick14_hc3_sensor16_lab_js = thick14_hc3_sensor16_lab_js
         self.thick14_hc3_sensor80_lab_js = thick14_hc3_sensor80_lab_js
         self.feature135_lab_js = feature135_lab_js
+        self.thick7_lab_dict = dict()
 
         # tmp 落盘文件
         self.evt_thick_js = r'./evt_thick.json'
         self.evt_pair = r'正背面_thickness_evtname.txt'
-        self.thick7_lab = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\org_refine_thickness_lab_curve.json'
+        # self.thick7_lab = r'./org_thick7_lab.json'
         self.sen_list = ['ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_RATE', 'ACT_O1_QCMS_THICKNESS_CH1',
                          'ACT_O1_QCMS_RATE_CH1']
-        self.csv_dict_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\evtname_sensor_name_value.json'
+        self.csv_dict_js = r'./evtname_sensor_name_value.json'
 
     # def __call__(self, ):
     def run(self, ):
-        # 数据清洗: 包括机台号一致,镀膜层数一致等..
-        # clean_data_machineid(self.base_data_dir, self.new_path)
-        # clean_data_nthickness(self.data_dir, self.n_thickness, self.evt_thick_js)
 
         # start data_clean
-        get_evtpair_info(self.CC_dir, self.CX_dir, self.evt33, self.evt_pair)
+        get_evtpair_info(self.CC_dir, self.CX_dir, self.evt33, self.evt_pair, self.n_thickness)
         evt_33(self.evt33, self.evt_dict, self.data_dir, self.evt_33number)
         lab_curve33(self.membrane, self.evt_dict, self.data_js, self.data_dir, self.thickness_lab_curve)
-        check_data(self.thickness_lab_curve, self.evt_dict, self.bad_thick_lab)
-        refine_data(self.bad_thick_lab, self.process_data, self.refine_data_json, self.oneone_evt_thickness)
+        check_data(self.thickness_lab_curve, self.evt_dict, self.bad_thick_lab, self.bad_js)
+        refine_data(self.bad_thick_lab, self.process_data, self.refine_data_json, self.oneone_evt_thickness,
+                    self.number33_thick_js)
 
         # 添加3个耗材维度特征
         get_hc_value(self.process_data, self.num33_hc_js, '背面')
         hc_feature(self.num33_hc_js, self.number33_thick_js, self.refine_data_json, self.thick_hc_lab_js)
 
-        # 添加膜厚,rate等sensor列的时序特征
-        add_sensor_feature(self.data_dir, self.oneone_evt_thickness, self.thick7_lab, self.thick_hc_lab_js,
+        # 添加膜厚,rate等sensor列的时序特征(4*4=16dims)
+        add_sensor_feature(self.data_dir, self.oneone_evt_thickness, self.bad_thick_lab, self.thick_hc_lab_js,
                            self.sen_list, self.thick14_hc3_sensor16_lab_js)
         # 添加8个step的时序特征(len=128 8*4*4)
-        get8step_sensor_feature(self.data_dir, self.csv_dict_js, self.thick14_hc3_sensor80_lab_js, self.thick14_hc3_sensor16_lab_js, self.oneone_evt_thickness,
-                            self.thick7_lab, self.sen_list)
+        get8step_sensor_feature(self.data_dir, self.csv_dict_js, self.thick14_hc3_sensor80_lab_js,
+                                self.thick14_hc3_sensor16_lab_js, self.oneone_evt_thickness,
+                                self.refine_data_json, self.sen_list)
         # 再加入19列有意义数据的38维特征
-        all_usful_sensor_except_thickness(self.data_dir, self.thick7_lab, self.oneone_evt_thickness, self.thick14_hc3_sensor80_lab_js, self.feature135_lab_js)
+        all_usful_sensor_except_thickness(self.data_dir, self.refine_data_json, self.oneone_evt_thickness,
+                                          self.thick14_hc3_sensor80_lab_js, self.feature135_lab_js)
 
         # import check_data.py 中的函数实现部分数据清洗功能
-        rate_thickness_check(self.data_dir)  # 膜厚设置\实测值diff与rate*2对比
-        # [no!]
-        # bad_sample_clean(self.refine_data_json, self.oneone_evt_thickness)   # 离群样本剔除,第一步拟合模型时不适用这些样本,第二步thickness微调再加入
+        # rate_thickness_check(self.data_dir)  # 膜厚设置\实测值diff与rate*2对比
 
+    def clean_data_machineid(self, ):
+        '''
+        数据清洗: 包括机台号一致,镀膜层数一致等..
+        :param base_data_dir: all data path [没做任何筛选处理的所有data]
+        :param new_path:  根据机器版本号等,把数据拆分到sub文件夹,保证各个子文件夹中,机器版本号都一致
+        :return:
 
-def clean_data_machineid(base_data_dir, new_path):
-    '''
-    :param base_data_dir: all data path [没做任何筛选处理的所有data]
-    :param new_path:  根据机器版本号等,把数据拆分到sub文件夹,保证各个子文件夹中,机器版本号都一致
-    :return:
+        '''
 
-    '''
-    files = os.listdir(base_data_dir)
-    files = [i for i in files if "EVT" in i]
-    # PLC_version = []
-    # MachineName = []
-    RecipeName = []
-    RecipeName_dict = dict()
-    for file in files:
-        f = open(os.path.join(base_data_dir, file), 'r')
-        for index, line in enumerate(f):
-            # if index == 1:
-            #     PLC_version.append(line.split(',')[-1])
-            # elif index == 2:
-            #     MachineName.append(line.split(',')[-1])
-            if index == 3:
-                recipename = line[:-1].split(',')[-1]
-                if recipename:
-                    RecipeName.append(recipename)
-                    if recipename and recipename not in RecipeName_dict:
-                        RecipeName_dict[recipename] = []
-                    RecipeName_dict[recipename].append(file)
-
-    for k, v in RecipeName_dict.items():
-        path = os.path.join(new_path, r'33#机台文件_7dirs', k)
-        if not os.path.exists(path):
+        files = os.listdir(self.base_data_dir)
+        files = [i for i in files if ("evt" or "EVT") in i]
+        PLC_version = []
+        MachineName = []
+        RecipeName = []
+        RecipeName_dict = dict()
+        for file in files:
+            f = open(os.path.join(self.base_data_dir, file), 'r')
+            for index, line in enumerate(f):
+                # if index == 1:
+                #     PLC_version.append(line.split(',')[-1])
+                # elif index == 2:
+                #     MachineName.append(line.split(',')[-1])
+                if index == 3:
+                    recipename = line[:-1].split(',')[-1]
+                    if recipename:
+                        RecipeName.append(recipename)
+                        if recipename and recipename not in RecipeName_dict:
+                            RecipeName_dict[recipename] = []
+                            RecipeName_dict[recipename].append(file)
+                        elif recipename:
+                            RecipeName_dict[recipename].append(file)
+        count = 0
+        for k, v in RecipeName_dict.items():
+            # print(len(v))
+            count += len(v)
+            path = os.path.join(self.base_data_dir, k)
+            # isExists = os.path.exists(path)
             os.makedirs(path)
-        for cvs_name in v:
-            filename0 = os.path.join(base_data_dir, cvs_name)
-            filename1 = os.path.join(path, cvs_name)
-            filename0_ = os.path.join(base_data_dir, cvs_name[3:])
-            filename1_ = os.path.join(path, cvs_name[3:])
-            shutil.move(filename0, filename1)
-            shutil.move(filename0_, filename1_)
+            for cvs_name in v:
+                filename0 = os.path.join(self.base_data_dir, cvs_name)
+                filename1 = os.path.join(path, cvs_name)
+                filename0_ = os.path.join(self.base_data_dir, cvs_name[3:])
+                filename1_ = os.path.join(path, cvs_name[3:])
+                try:
+                    shutil.move(filename0, filename1)
+                except:
+                    print(filename0)
+                    pass
+                try:
+                    shutil.move(filename0_, filename1_)
+                except:
+                    print(filename0_)
+                    pass
+        print(count)
 
-    f = open('kinds_of_data.txt', 'w')
-    sub_data_path = os.path.join(new_path, r'33#机台文件_7dirs')
-    print('MachineName kinds: {}'.format(os.listdir(sub_data_path)))
-    for dir_ in os.listdir(sub_data_path):
-        if '.txt' not in dir_:
-            f.write(dir_ + '\n')
+    def clean_data_nthickness(self, ):
+        '''
+        :param data_dir: clean_data_machineid()中生成的某一sub_dir
+        :param n_thickness: 7层膜厚设置, 也可以是5、6、4等
+        :param evt_thick_js: 落盘js名称, evtname:thickness
+        :return:
 
-
-def clean_data_nthickness(data_dir, n_thickness, evt_thick_js):
-    '''
-    :param data_dir: clean_data_machineid()中生成的某一sub_dir
-    :param n_thickness: 7层膜厚设置, 也可以是5、6、4等
-    :param evt_thick_js: 落盘js名称, evtname:thickness
-    :return:
-
-    '''
-    evt_thick = dict()
-    files = os.listdir(data_dir)
-    files = [a for a in files if 'EVT' in a]
-    for file in files:
-        thickness_list = []
-        full_path = os.path.join(data_dir, file)
-        process = open(full_path, 'r')
-        for index, line in enumerate(process):
-            if 'Thickness' in line:
-                thickness_list.append(line.split(',')[4])
-        if len(thickness_list) == n_thickness:
-            evt_thick[file] = thickness_list
-
-    data = json.dumps(evt_thick)
-    with open(evt_thick_js, 'w') as js_file:
-        js_file.write(data)
+        '''
+        evt_thick = dict()
+        files = os.listdir(self.data_dir)
+        files = [a for a in files if 'evt' in a]
+        for file in files:
+            thickness_list = []
+            full_path = os.path.join(self.data_dir, file)
+            process = open(full_path, 'r')
+            for index, line in enumerate(process):
+                if 'Thickness' in line:
+                    thickness_list.append(line.split(',')[4])
+            if len(thickness_list) == self.n_thickness:
+                evt_thick[file] = thickness_list
+        print(len(evt_thick))
+        data = json.dumps(evt_thick)
+        with open(self.evt_thick_js, 'w') as js_file:
+            js_file.write(data)
 
 
 def evt_33(evt33, evt_dict, data_dir, evt_33number):
@@ -200,23 +207,28 @@ def evt_33(evt33, evt_dict, data_dir, evt_33number):
     '''
     wb = xlrd.open_workbook(evt33)
     data = wb.sheet_by_name('Sheet1')
+    title = data.row_values(0)
+    info_title = ['OvenNo', 'FileID']
+    index1, index2 = title.index(info_title[0]), title.index(info_title[1])
     rows = data.nrows
     for i in range(1, rows):
-        # print(data.row_values(i))  # 每一行都是一个list
-        evt_dict[data.cell(i, 5).value + '.CSV'] = data.cell(i, 2).value
+        # print(data.row_values(i))
+        evt_dict[(data.cell(i, index2).value).lower() + '.csv'] = data.cell(i,
+                                                                            index1).value  # evt_name统一成小写: evt21062916.csv
     evt_dict_keys = list(evt_dict.keys())
     evt_cc_list = os.listdir(data_dir)
     for evt in evt_dict_keys:
         if evt not in evt_cc_list:
             del evt_dict[evt]
-    # 做一下 evt_dict[EVT21050506 ] = 33121052204 落盘
     data = json.dumps(evt_dict)
     with open(evt_33number, 'w') as js_file:
         js_file.write(data)
+    print(len(evt_dict), 'evt_dict')
 
 
 def lab_curve33(membrane, evt_dict, data_js, data_dir, thickness_lab_curve):
     '''
+
     处理 膜色数据.xlsx, 把33321043002编号和膜色曲线关联起来,
     同一编号对应多条曲线(炉内不同的层), 统一取第四层数据
 
@@ -230,23 +242,36 @@ def lab_curve33(membrane, evt_dict, data_js, data_dir, thickness_lab_curve):
     '''
     # 读取膜厚数据
     wb = xlrd.open_workbook(membrane)
-    data = wb.sheet_by_name('Sheet1')
+    data = wb.sheet_by_name(r'双面膜色曲线 (第二批)')  # Sheet1
     rows = data.nrows
+    title = data.row_values(1)
+    need_title = ['AREquipmentSortNo', '380', '780']
+    num33_index, lab_index1, lab_index2 = title.index(need_title[0]), title.index(need_title[1]), title.index(
+        need_title[2])
     numberss_dict = dict()
     number33_lab_curve = dict()
-    for i in range(1, rows):
-        numberss_dict[data.cell(i, 2).value] = numberss_dict.get(data.cell(i, 2).value, 0) + 1
+    for i in range(2, rows):
+        # print(data.row_values(i))
+        numberss_dict[data.cell(i, num33_index).value] = numberss_dict.get(data.cell(i, num33_index).value, 0) + 1
         # 我们取第四层的膜色曲线为基准
-        if numberss_dict[data.cell(i, 2).value] == 4:
-            # print(data.cell(i, 2).value, data.row_values(i)[19:-1])
-            number33_lab_curve[data.cell(i, 2).value] = data.row_values(i)[19:-1]
+        if numberss_dict[data.cell(i, num33_index).value] == 4:
+            tmp = data.row_values(i)[lab_index1: lab_index2 + 1]
+            # 剔除lab曲线少于81维的lab数据
+            tmp = [i for i in tmp if i != '']
+            if len(tmp) == 81:
+                number33_lab_curve[data.cell(i, 1).value] = tmp
+    data = json.dumps(number33_lab_curve)
+    with open(r'./num33_lab.json', 'w') as js_file:
+        js_file.write(data)
 
     # 借助 evtname:33number、33number:lab_curv,获得evtname:lab_curv关联
     # get: evtname:lab_curve
     evt_name_lab_curve = dict()
+    print(len(evt_dict), 'evt_dict')
     for evt_name, number in evt_dict.items():
         if number in number33_lab_curve:
             evt_name_lab_curve[evt_name] = number33_lab_curve[number]
+    print(len(evt_name_lab_curve), 'evt_name_lab_curve')
 
     # evtname:lab_curve, 根据evtname获取thickness,关联thickness:lab_curve
     for evt_name in evt_name_lab_curve:
@@ -262,7 +287,7 @@ def lab_curve33(membrane, evt_dict, data_js, data_dir, thickness_lab_curve):
         # thickness_lab_curve[''.join(i + ',' for i in thickness)] = evt_name_lab_curve[evt_name]
         thickness_lab_curve[''.join(i + ',' for i in thickness) + '{}'.format(evt_name[:-4])] = evt_name_lab_curve[
             evt_name]
-    # print(len(thickness_lab_curve))
+    print(len(thickness_lab_curve), 'thickness_lab_curve')
 
     # 做一个thickness_lab_curve 落盘
     data = json.dumps(thickness_lab_curve)
@@ -271,7 +296,7 @@ def lab_curve33(membrane, evt_dict, data_js, data_dir, thickness_lab_curve):
 
 
 # check_data 0624 chenjia
-def check_data(thickness_lab_curve, evt_dict, bad_thick_lab):
+def check_data(thickness_lab_curve, evt_dict, bad_thick_lab, bad_js):
     '''
     # 同一膜厚设置,对应不同的evtname, 也即不同的lab_curve
     :param thickness_lab_curve
@@ -284,11 +309,11 @@ def check_data(thickness_lab_curve, evt_dict, bad_thick_lab):
         thickes = ''.join(i + ',' for i in thickes)
         if thickes not in bad_thick_lab:
             bad_thick_lab[thickes] = []
-        bad_thick_lab[thickes].append([evt_name, lab_curve, evt_dict[evt_name + '.CSV']])
-
+        bad_thick_lab[thickes].append([evt_name, lab_curve, evt_dict[evt_name + '.csv']])
+    print(len(bad_thick_lab), 'bad_thick_lab')
     # 落盘下
     data = json.dumps(bad_thick_lab)
-    with open(r'./bad_thick_lab.json', 'w') as js_file:
+    with open(bad_js, 'w') as js_file:
         js_file.write(data)
     # txt 输出可以给数据方(蔡司排查问题)
     if len(thickness_lab_curve) != len(bad_thick_lab):
@@ -302,16 +327,24 @@ def check_data(thickness_lab_curve, evt_dict, bad_thick_lab):
             f.write('\n')
 
 
-def get_evtpair_info(CC_dir, CX_dir, evt33, evt_pair):
+def get_evtpair_info(CC_dir, CX_dir, evt33, evt_pair, n_thickness):
     wb = xlrd.open_workbook(evt33)
     data = wb.sheet_by_name('Sheet1')
+    title = data.row_values(0)
+    info_title = ['OvenNo', 'FileID']
+    index1, index2 = title.index(info_title[0]), title.index(info_title[1])
     number33_evts = dict()
     rows = data.nrows
     for i in range(1, rows):
-        number33 = data.cell(i, 2).value
+        number33 = data.cell(i, index1).value
         if number33 not in number33_evts:
             number33_evts[number33] = []
-        number33_evts[number33].append(data.cell(i, 5).value)
+        # 这里有时候大写,有时候小写.. 统一成小写.
+        number33_evts[number33].append((data.cell(i, index2).value).lower())
+    print('number33_evts lens: ', len(number33_evts))
+    # for k, v in number33_evts.items():
+    #     if len(v) > 1:
+    #         print(k, v)
 
     dirs = [CC_dir, CX_dir]
     cxs = os.listdir(CX_dir)
@@ -320,17 +353,17 @@ def get_evtpair_info(CC_dir, CX_dir, evt33, evt_pair):
     f = open(evt_pair, 'w')
     evt_cc = []
     for num33, evt_list in number33_evts.items():
+        print(evt_list)
         if len(evt_list) == 2:
-            if (evt_list[1] + '.CSV' in cxs and evt_list[0] + '.CSV' in ccs) or (
-                    evt_list[0] + '.CSV' in cxs and evt_list[1] + '.CSV' in ccs):
+            if (evt_list[1] + '.csv' in cxs and evt_list[0] + '.csv' in ccs) or (
+                    evt_list[0] + '.csv' in cxs and evt_list[1] + '.csv' in ccs):
                 evts = []
                 for dir_ in dirs:
                     for i in range(2):
-                        if os.path.exists(os.path.join(dir_, evt_list[i] + '.CSV')):
-                            evts.append(os.path.join(dir_, evt_list[i] + '.CSV'))
+                        if os.path.exists(os.path.join(dir_, evt_list[i] + '.csv')):
+                            evts.append(os.path.join(dir_, evt_list[i] + '.csv'))
                 thickness1 = []
                 thickness2 = []
-                # print(evts)
                 evt1, evt2 = evts[0], evts[1]
                 with open(evt1, 'r') as file:
                     for line in file:
@@ -341,11 +374,12 @@ def get_evtpair_info(CC_dir, CX_dir, evt33, evt_pair):
                         if "Thickness" in line:
                             thickness2.append(line.split(',')[4])
                 # if thickness1 != thickness2:
-                f.write(num33 + ',')
-                f.write(evt1.split('\\')[-1] + ',' + evt2.split('\\')[-1] + ',')
-                f.write(''.join(str(i) + ' ' for i in thickness1) + ',')
-                f.write(''.join(str(i) + ' ' for i in thickness2) + '\n')
-                evt_cc.append(evt1.split('\\')[-1])
+                if len(thickness2) == len(thickness1) and len(thickness2) == n_thickness:
+                    f.write(num33 + ',')
+                    f.write(evt1.split('\\')[-1] + ',' + evt2.split('\\')[-1] + ',')
+                    f.write(''.join(str(i) + ' ' for i in thickness1) + ',')
+                    f.write(''.join(str(i) + ' ' for i in thickness2) + '\n')
+                    evt_cc.append(evt1.split('\\')[-1])
     print('get evt pair ~')
 
 
@@ -368,7 +402,7 @@ def evt_pair_thick(evt_name):
 
 # refine_data 0624 chenjia
 # add 正背面膜厚值, concate or mean. 0625 chenjia
-def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness, concate=True):
+def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness, number33_thick_js, concate=True):
     '''
     :param concate or mean True/False
     :param process_data: 工艺记录.xlsx
@@ -379,20 +413,24 @@ def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness
     number33 = open(r'./33number.txt', 'w')
     wb = xlrd.open_workbook(process_data)
     data = wb.sheet_by_name('Sheet1')
+    title = data.row_values(0)
+    info_title = ['反正面', '炉序号', '电子枪灯丝']
+    index1, index2, index3 = title.index(info_title[0]), title.index(info_title[1]), title.index(info_title[2])
     rows = data.nrows
     number_time = dict()
     time_number = dict()
     finall_thick_lab = dict()
     oneone_evt_thickness = dict()
     number33_thick = dict()
-
     for i in range(1, rows):
         # 正背面, 与data_dir中的 CC or CX后缀对应
-        if data.cell(i, 2).value == '背面':
+        if data.cell(i, index1).value == '背面':
             # 33121060707:电子枪数号
-            number_time[data.cell(i, 1).value] = data.cell(i, 14).value  # 33121052004: time_index
-            time_number[data.cell(i, 14).value] = data.cell(i, 1).value  # time_index: 33121052004
+            number_time[data.cell(i, index2).value] = data.cell(i, index3).value  # 33121052004: time_index
+            time_number[data.cell(i, index3).value] = data.cell(i, index2).value  # time_index: 33121052004
+            # print([data.cell(i, index2).value], data.cell(i, index3).value)
     for thickness, list_ in bad_thick_lab.items():
+        # print(len(list_), 'one thickness_list, multi-lab...')
         # time_index = []
         for single_list in list_:
             # single_list：[EVT21050425, [lab_curv], 33number]
@@ -403,7 +441,7 @@ def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness
                 oneone_evt_thickness[single_list[0]] = thickness  # evtname:thickness
                 # number33_thick[single_list[-1]] = thickness  # 获取7层膜厚数值
                 # 在这里穿插,根据evtname, 找到当前evt的对应正面,并获取膜厚设置值
-                pair_thick, thick1 = evt_pair_thick(single_list[0] + '.CSV')  # str, list
+                pair_thick, thick1 = evt_pair_thick(single_list[0] + '.csv')  # str, list
                 if pair_thick and thick1 == thickness.split(','):
                     if not concate:
                         # 取mean, 保留7层维度
@@ -419,7 +457,7 @@ def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness
                         number33_thick[single_list[-1]] = thickness + pair_thick
                 else:
                     if not concate:
-                        # print(pair_thick, thick1, thickness, single_list[0]+'.CSV')   # 部分背面evt找不到正面的evt,没事那就copy一份膜值.
+                        # print(pair_thick, thick1, thickness, single_list[0]+'.csv')   # 部分背面evt找不到正面的evt,没事那就copy一份膜值.
                         finall_thick_lab[thickness] = single_list[1]
                     else:  # concate
                         finall_thick_lab[thickness + thickness[:-1]] = single_list[1]  # 正背concate
@@ -428,7 +466,7 @@ def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness
                 break  # 找到一个33number了,就不再遍历list_, break出循环
     # mean处理正背面的膜厚时, 可能出现key值重复,覆盖更新了value,故而导致finall_thick_lab 和 oneone_evt_thickness 长度不等
     assert len(finall_thick_lab) == len(oneone_evt_thickness)  # len需要一致!
-
+    print(len(finall_thick_lab), 'finall_thick_lab')
     data = json.dumps(finall_thick_lab)
     with open(refine_data_json, 'w') as js_file:
         js_file.write(data)
@@ -438,7 +476,7 @@ def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness
         js_file.write(data)
 
     data = json.dumps(number33_thick)
-    with open(r'./33number_thickness.json', 'w') as js_file:
+    with open(number33_thick_js, 'w') as js_file:
         js_file.write(data)
 
 
@@ -450,14 +488,18 @@ def get_hc_value(process_data, num33_hc_js, face):
         num33_list.append(nub33[:-1])
     wb = xlrd.open_workbook(process_data)
     data = wb.sheet_by_name('Sheet1')
+    title = data.row_values(0)
+    info_title = ['炉序号', '反正面', '离子枪灯丝', '电子枪灯丝', '挡板']
+    index1, index2, index3, index4, index5 = title.index(info_title[0]), title.index(info_title[1]), title.index(
+        info_title[2]), title.index(info_title[3]), title.index(info_title[4])
     rows = data.nrows
     number33_dsdzqdb = dict()
     for i in range(1, rows):
         # 依然是读取的背面行的数据,正面镀膜完后再背面..耗材去背面的更合理
-        if data.cell(i, 1).value in num33_list and data.cell(i, 2).value == face:
+        if data.cell(i, index1).value in num33_list and data.cell(i, index2).value == face:
             # print(data.row_values(i))
-            number33_dsdzqdb[data.cell(i, 1).value] = [data.cell(i, 13).value, data.cell(i, 14).value,
-                                                       data.cell(i, 16).value]
+            number33_dsdzqdb[data.cell(i, index1).value] = [data.cell(i, index3).value, data.cell(i, index4).value,
+                                                            data.cell(i, index5).value]
     data = json.dumps(number33_dsdzqdb)
     with open(num33_hc_js, 'w') as js_file:
         js_file.write(data)
@@ -493,6 +535,7 @@ def hc_feature(num33_hc_js, number33_thick_js, org_refine_data_json, thick_hc_la
         #     thickness_hc = num33_thick14[num33] + ',' + hc
 
         thick_hc_lab[thickness_hc] = thick14_lab[num33_thick14[num33]]
+    # print(len(thick_hc_lab), thick_hc_lab)
     data = json.dumps(thick_hc_lab)
     with open(thick_hc_lab_js, 'w') as js_file:
         js_file.write(data)
@@ -513,7 +556,7 @@ def sensor_csv_feature(sen_list, data):
         # rate的 mean, std,
         # if 'RATE' in sen:
         mean = np.mean([i for i in data[sen]][2:])
-        std = np.std([i for i in data[sen]][2:], ddof=1)  
+        std = np.std([i for i in data[sen]][2:], ddof=1)
         f_sensor.append(mean)
         f_sensor.append(std)
     # scale = StandardScaler(with_mean=True, with_std=True)
@@ -524,7 +567,7 @@ def sensor_csv_feature(sen_list, data):
 
 def add_sensor_feature(data_dir, evt_7thick_js, thick7_lab_js, thick_hc_lab_js, sen_list, thick14_hc3_sensor16_lab_js):
     evt_7thick = json.load(open(evt_7thick_js, 'r'))
-    thick7_lab = json.load(open(thick7_lab_js, 'r'))
+    thick7_multilab = thick7_lab_js
     thick14hc3sensor16_lab = dict()
     lab_thick_hc = dict()
     thick_hc_lab = json.load(open(thick_hc_lab_js, 'r'))
@@ -532,20 +575,33 @@ def add_sensor_feature(data_dir, evt_7thick_js, thick7_lab_js, thick_hc_lab_js, 
         lab_thick_hc[''.join(str(i) for i in lab)] = thick_hc
     for evtname, thick7 in evt_7thick.items():
         # 等待补充的17维feature
-        thick14_hc3 = lab_thick_hc[''.join(str(i) for i in thick7_lab[thick7])]
-        # 读取sensor数据csv文件
-        full_file_path = os.path.join(data_dir, evtname[3:] + '.CSV')
-        data = pd.read_csv(full_file_path, error_bad_lines=False)
-        sensor16 = sensor_csv_feature(sen_list, data)
-        thick14_hc3_sensor16 = thick14_hc3 + sensor16
-        thick14hc3sensor16_lab[thick14_hc3_sensor16] = thick7_lab[thick7]
+        for lab in thick7_multilab[thick7]:
+            # 59 labs
+            try:
+                thick14_hc3 = lab_thick_hc[''.join(str(i) for i in lab[1])]
+            except:
+                continue
+            # 读取sensor数据csv文件
+            full_file_path = os.path.join(data_dir, evtname[3:] + '.csv')
+            try:
+                data = pd.read_csv(full_file_path, error_bad_lines=False)
+            except:
+                continue
+            sensor16 = sensor_csv_feature(sen_list, data)
+            thick14_hc3_sensor16 = thick14_hc3 + sensor16
+            thick14hc3sensor16_lab[thick14_hc3_sensor16] = lab
+
+    print(len(thick14hc3sensor16_lab), 'thick14hc3sensor16_lab')
     data = json.dumps(thick14hc3sensor16_lab)
     with open(thick14_hc3_sensor16_lab_js, 'w') as js_file:
         js_file.write(data)
 
 
 def usful_sensor_feature(sensor_csv):
-    sensor_csv = pd.read_csv(sensor_csv, error_bad_lines=False)
+    try:
+        sensor_csv = pd.read_csv(sensor_csv, error_bad_lines=False)
+    except:
+        return ''
     tmp = open(r'./info_sensor_nothick.txt', 'r')
     ok_sen_list = tmp.readlines()[0].split(',')[:-1]
     f = []
@@ -556,39 +612,51 @@ def usful_sensor_feature(sensor_csv):
         ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
         f.append(ae1[0][1])
         # ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
-        ae3 = tsf.feature_extraction.feature_calculators.binned_entropy(ts, 10)   # 信息熵,可以考虑加入
+        ae3 = tsf.feature_extraction.feature_calculators.binned_entropy(ts, 10)  # 信息熵,可以考虑加入
         f.append(ae3)
-    return ''.join(str(i)+',' for i in f)
+    return ''.join(str(i) + ',' for i in f)
 
 
-def all_usful_sensor_except_thickness(csv_dir, org_refine_thick_lab, oneone_evt_thick, thick14_hc3_sensor64_lab_js, feature135_lab_js):
+def all_usful_sensor_except_thickness(csv_dir, org_refine_thick_lab, oneone_evt_thick, thick14_hc3_sensor64_lab_js,
+                                      feature135_lab_js):
     '''
-    整合出来已经处理的thickness、rate这四列之外的,有意义数据列feature
+    提取, 整合出来已经处理的thickness、rate这四列之外的,有意义19列数据的feature
     :return: 19*2=38维特征
 
     '''
-    thick7_lab = json.load(open(org_refine_thick_lab, 'r'))
+    thick14_lab = json.load(open(org_refine_thick_lab, 'r'))
+    thick7_lab = dict()
+    for k, v in thick14_lab.items():
+        tmp = k.split(',')[:7]
+        thick7_lab[''.join(i + ',' for i in tmp)] = v
     evt_7thick = json.load(open(oneone_evt_thick, 'r'))
     feature135_lab = dict()
     # key value 转换
     feature97_lab = json.load(open(thick14_hc3_sensor64_lab_js, 'r'))
     lab_feature97 = dict()
-    for k, v in feature97_lab.items():
-        lab_feature97[''.join(str(i) for i in v)] = k   # lab:feature97
+    for feature97, lab in feature97_lab.items():
+        lab_feature97[''.join(str(i) for i in lab)] = feature97
     for evt, thick7 in evt_7thick.items():
-        feature38_sensor = usful_sensor_feature(os.path.join(csv_dir, evt[3:] + '.CSV'))
-        lab = thick7_lab[thick7]
-        old_thick_hc_sensor = lab_feature97[''.join(str(i) for i in lab)]
-        new_thick_hc_sensor = old_thick_hc_sensor + feature38_sensor
-        feature135_lab[new_thick_hc_sensor] = lab
+        feature38_sensor = usful_sensor_feature(os.path.join(csv_dir, evt[3:] + '.csv'))
+        try:
+            lab = thick7_lab[thick7]
+        except:
+            continue
+        try:
+            old_thick_hc_sensor = lab_feature97[''.join(str(i) for i in lab)]
+        except:
+            continue
+        if feature38_sensor != '':
+            new_thick_hc_sensor = old_thick_hc_sensor + feature38_sensor
+            feature135_lab[new_thick_hc_sensor] = lab
 
     # 落盘
     js = json.dumps(feature135_lab)
     with open(feature135_lab_js, 'w') as js_:
         js_.write(js)
     print("got {}!!".format(feature135_lab_js))
-    
-    
+
+
 if __name__ == "__main__":
     base_data_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件'
     file1 = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#膜色文件与EVT文件对应表.xlsx'
@@ -598,9 +666,3 @@ if __name__ == "__main__":
     process_data = r'D:\work\project\卡尔蔡司AR镀膜\文档s\蔡司资料0615\工艺记录.xlsx'
     evt_thick = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\oneone_evt_thickness.json'
     rate_thickness_check(evt_cc_dir)  # import check_data.py 中的函数实现部分数据清洗功能
-    # # bad_sample_clean(data_js, evt_thick)
-    # # get_hc_value(process_data, '背面')
-    # num33_hc_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\33_hc.json'
-    # number33_thick_js = r'D:\work\project\卡尔蔡司AR镀膜\ML_ZEISS\33number_thickness.json'
-    # refine_data_json = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\refine_thickness_lab_curve.json'
-    # hc_feature(num33_hc_js, number33_thick_js, refine_data_json)

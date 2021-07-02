@@ -241,6 +241,47 @@ for num33, evt_list in number33_evts.items():
     # for i in data.row_values(1):
     #     f.write(i+',')
 
+
+
+def get_info(path, miss_info):
+    # :param path: dir path
+    # :return: all_dir's process_sensor_value_dict. a list
+
+    miss_dir = open(miss_info, 'w')
+    all_process_sensor = dict()
+    all_sensor_index_dict = dict()
+    dir_names = os.listdir(path)
+    for dir_name in dir_names:
+        sensor_csv = os.path.join(path, dir_name, "{}.csv".format(dir_name))
+        process_csv = os.path.join(path, dir_name, "evt{}.csv".format(dir_name))
+        try:
+            sensor_lines = open(sensor_csv, "r")
+            process_lines = open(process_csv, "r")
+        except:
+            # print("{} loss evt or csv file".format(dir_name))
+            # 落盘csv损失的文件夹名称至txt
+            miss_dir.write(dir_name + '\n')
+            continue
+        # step1.
+        # 为每一对csv文件,存储evt, sensor dict{}
+        evt_dict, running_times, sensor_values, sensor_names = get_evt_sensor_dict(sensor_lines, process_lines)
+
+        # step2.
+        # 时间和sensor_value关联:
+        # evt中最后一行的时间在sensor中可能找不到,它是evt的end信息
+        time_sensor = get_time_sensor(evt_dict, running_times, sensor_values, dir_name)
+
+        # step3.
+        # process_name 和 sensor_value联系起来
+        process_sensor_dict = process_sensor(evt_dict, time_sensor)
+        all_process_sensor[dir_name] = process_sensor_dict
+        all_sensor_index_dict[dir_name] = sensor_names
+    miss_dir.close()
+
+    return all_process_sensor, all_sensor_index_dict
+    
+    
+    
 '''
 
 import xlrd

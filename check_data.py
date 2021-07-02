@@ -2,10 +2,11 @@
 import json
 import os
 import shutil
-import matplotlib.pyplot as plt
+
 import numpy as np
 import pandas as pd
 import tsfresh as tsf
+import xlrd
 
 '''
 peak峰值个数,峰值
@@ -20,7 +21,7 @@ peak峰值个数,峰值
 
 def same_machine_recip(dir_):
     files = os.listdir(dir_)
-    files = [i for i in files if "EVT" in i]
+    files = [i for i in files if "evt" in i]
     PLC_version = []
     MachineName = []
     RecipeName = []
@@ -53,8 +54,16 @@ def same_machine_recip(dir_):
             filename1 = os.path.join(path, cvs_name)
             filename0_ = os.path.join(dir_, cvs_name[3:])
             filename1_ = os.path.join(path, cvs_name[3:])
-            shutil.move(filename0, filename1)
-            shutil.move(filename0_, filename1_)
+            try:
+                shutil.move(filename0, filename1)
+            except:
+                print(filename0)
+                pass
+            try:
+                shutil.move(filename0_, filename1_)
+            except:
+                print(filename0_)
+                pass
     print(count)
 
 
@@ -257,11 +266,11 @@ def get_thick_sensor(evt_thickness, thickness_sensor_file, file_sensor_dict):
     # evts = list(evt_thick_dict.keys())
 
     # evtname: sensor_list dict
-    evtname_sensor = json.load(open(file_sensor_dict, 'r'))  # 21042718.CSV
+    evtname_sensor = json.load(open(file_sensor_dict, 'r'))  # 21042718.csv
     # 根据：evt_dict(evt:33)、number33_lab(33:lab)、file_sensor_dict(evt:sensor_value_list)
     for evt, thick in evt_thick_dict.items():
-        thickness_sensor[thick] = evtname_sensor[evt[3:] + '.CSV']
-    #     print(thick, '===', len(evtname_sensor[evt[3:]+'.CSV']))
+        thickness_sensor[thick] = evtname_sensor[evt[3:] + '.csv']
+    #     print(thick, '===', len(evtname_sensor[evt[3:]+'.csv']))
     # print(len(thickness_sensor))
     # 落盘json
     data = json.dumps(thickness_sensor)
@@ -349,7 +358,6 @@ def bad_sample_clean(thickness_js, evt_thick):
                 f.write(thick_evt[thick] + '\n')
 
 
-
 def sensor_csv_feature(sen_list, data):
     # 一个data/evt样本输入进来,输出特征维度: 4*2+2*2=12维
     f_sensor = []
@@ -387,7 +395,7 @@ def add_sensor_feature(data_dir, evt_7thick_js, thick7_lab_js, thick_hc_lab_js, 
         # 等待补充的17维feature
         thick14_hc3 = lab_thick_hc[''.join(str(i) for i in thick7_lab[thick7])]
         # 读取sensor数据csv文件
-        full_file_path = os.path.join(data_dir, evtname[3:] + '.CSV')
+        full_file_path = os.path.join(data_dir, evtname[3:] + '.csv')
         data = pd.read_csv(full_file_path, error_bad_lines=False)
         sensor12 = sensor_csv_feature(sen_list, data)
         thick14_hc3_sensor12 = thick14_hc3 + sensor12
@@ -395,6 +403,7 @@ def add_sensor_feature(data_dir, evt_7thick_js, thick7_lab_js, thick_hc_lab_js, 
     data = json.dumps(thick14hc3sensor12_lab)
     with open(thick14_hc3_sensor16_lab_js, 'w') as js_file:
         js_file.write(data)
+
 
 def sensor_feature(sen_list, data, title):
     # data 是excel数据文件
@@ -421,12 +430,17 @@ def sensor_feature(sen_list, data, title):
 
 def backup_usful_sensor_feature():
     tmp = open(r'./info_sensor_nothick.txt', 'w')
-    f = os.path.join(csv_dir, r'21051026.CSV')
+    f = os.path.join(csv_dir, r'21051026.csv')
     sensor_csv = pd.read_csv(f, error_bad_lines=False)
-    ok_sen_list = ['ACT_V1_IONIVAC_CH', 'ACT_V1_THERMOVAC_CH', 'ACT_V1_THERMOVAC_PREVLINE', 'ACT_V1_THERMOVAC_HP', 'ACT_V1_PRESSURE_CH', 'AI_V1_POLYCOLD_TEMP', 'ACTN_F1_FLOW1', 'ACT_F1_FLOW1', 'ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_RATE', 'ACT_O1_QCMS_THICKNESS_CH1', 'ACT_O1_QCMS_RATE_CH1', 'STAT_LT_CRYSTAL_CH1', 'ACT_HEATER2_TEMPERATURE', 'ACT_Q10_CURRENT_ANODE', 'ACT_Q10_VOLTAGE_ANODE', 'ACT_Q10_CURRENT_CATHODE', 'ACT_Q10_VOLTAGE_CATHODE', 'ACT_Q10_CURRENT_NEUTRAL', 'ACT_Q10_ION_FLOW1', 'ACT_Q10_ION_FLOW2', 'STA_Q10_IONSOURCE_SHUTTER_IOP', 'ACT_V1_MEISSNER_POLYCOLDTEMP']
+    ok_sen_list = ['ACT_V1_IONIVAC_CH', 'ACT_V1_THERMOVAC_CH', 'ACT_V1_THERMOVAC_PREVLINE', 'ACT_V1_THERMOVAC_HP',
+                   'ACT_V1_PRESSURE_CH', 'AI_V1_POLYCOLD_TEMP', 'ACTN_F1_FLOW1', 'ACT_F1_FLOW1',
+                   'ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_RATE', 'ACT_O1_QCMS_THICKNESS_CH1', 'ACT_O1_QCMS_RATE_CH1',
+                   'STAT_LT_CRYSTAL_CH1', 'ACT_HEATER2_TEMPERATURE', 'ACT_Q10_CURRENT_ANODE', 'ACT_Q10_VOLTAGE_ANODE',
+                   'ACT_Q10_CURRENT_CATHODE', 'ACT_Q10_VOLTAGE_CATHODE', 'ACT_Q10_CURRENT_NEUTRAL', 'ACT_Q10_ION_FLOW1',
+                   'ACT_Q10_ION_FLOW2', 'STA_Q10_IONSOURCE_SHUTTER_IOP', 'ACT_V1_MEISSNER_POLYCOLDTEMP']
     ok_sen_list = [i for i in ok_sen_list if i not in sen_list]
     for a in ok_sen_list:
-        tmp.write(a+',')
+        tmp.write(a + ',')
     f = []
     for sen_n in ok_sen_list:
         try:
@@ -444,9 +458,8 @@ def backup_usful_sensor_feature():
         ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
         f.append(ae1[0][1])
         # ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
-        ae3 = tsf.feature_extraction.feature_calculators.binned_entropy(ts, 10)   # 信息熵,可以考虑加入
+        ae3 = tsf.feature_extraction.feature_calculators.binned_entropy(ts, 10)  # 信息熵,可以考虑加入
         f.append(ae3)
-
 
 
 def usful_sensor_feature(sensor_csv):
@@ -461,13 +474,13 @@ def usful_sensor_feature(sensor_csv):
         ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
         f.append(ae1[0][1])
         # ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
-        ae3 = tsf.feature_extraction.feature_calculators.binned_entropy(ts, 10)   # 信息熵,可以考虑加入
+        ae3 = tsf.feature_extraction.feature_calculators.binned_entropy(ts, 10)  # 信息熵,可以考虑加入
         f.append(ae3)
-    return ''.join(str(i)+',' for i in f)
+    return ''.join(str(i) + ',' for i in f)
 
 
-
-def all_usful_sensor_except_thickness(csv_dir, org_refine_thick_lab, oneone_evt_thick, thick14_hc3_sensor64_lab_js, feature135_lab_js):
+def all_usful_sensor_except_thickness(csv_dir, org_refine_thick_lab, oneone_evt_thick, thick14_hc3_sensor64_lab_js,
+                                      feature135_lab_js):
     '''
     整合出来已经处理的thickness、rate这四列之外的,有意义数据列feature
     :return: 19*2=38维特征
@@ -480,9 +493,9 @@ def all_usful_sensor_except_thickness(csv_dir, org_refine_thick_lab, oneone_evt_
     feature97_lab = json.load(open(thick14_hc3_sensor64_lab_js, 'r'))
     lab_feature97 = dict()
     for k, v in feature97_lab.items():
-        lab_feature97[''.join(str(i) for i in v)] = k   # lab:feature97
+        lab_feature97[''.join(str(i) for i in v)] = k  # lab:feature97
     for evt, thick7 in evt_7thick.items():
-        feature38_sensor = usful_sensor_feature(os.path.join(csv_dir, evt[3:] + '.CSV'))
+        feature38_sensor = usful_sensor_feature(os.path.join(csv_dir, evt[3:] + '.csv'))
         lab = thick7_lab[thick7]
         old_thick_hc_sensor = lab_feature97[''.join(str(i) for i in lab)]
         new_thick_hc_sensor = old_thick_hc_sensor + feature38_sensor
@@ -493,7 +506,6 @@ def all_usful_sensor_except_thickness(csv_dir, org_refine_thick_lab, oneone_evt_
     with open(feature135_lab_js, 'w') as js_:
         js_.write(js)
     print("got {}!!".format(feature135_lab_js))
-
 
 
 if __name__ == "__main__":
@@ -540,11 +552,17 @@ if __name__ == "__main__":
     thick14_hc3_sensor64_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick14hc3sensor64_lab.json'
     sen_list = ['ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_RATE', 'ACT_O1_QCMS_THICKNESS_CH1', 'ACT_O1_QCMS_RATE_CH1']
     # add_sensor_feature(data_dir, evt_7thick, thick7_lab, thick_hc_lab_js, sen_list, thick14_hc3_sensor16_lab_js)
-    all_usful_sensor_except_thickness(csv_dir, refine_thick_lab, oneone_evt_thick, thick14_hc3_sensor64_lab_js, feature135_lab_js)
+    # all_usful_sensor_except_thickness(csv_dir, refine_thick_lab, oneone_evt_thick, thick14_hc3_sensor64_lab_js,
+    #                                   feature135_lab_js)
+    dir_ = r'D:\work\project\卡尔蔡司AR镀膜\第二批7.1\机台文件'
+    # same_machine_recip(dir_)
 
-
-
-
-
-
-
+    root_dir = r'D:\work\project\卡尔蔡司AR镀膜\第二批7.1'
+    file1 = os.path.join(root_dir, r'33#膜色数据.xlsx')
+    file2 = os.path.join(root_dir, r'匹配关系.xlsx')
+    wb1 = xlrd.open_workbook(file1)
+    data1 = wb1.sheet_by_name(r'双面膜色曲线 (第二批)')
+    rows1 = data1.nrows
+    num33ms = []
+    for i in range(2, rows1):
+        num33ms.append(data1.cell(i, 1).value)

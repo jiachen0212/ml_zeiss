@@ -99,16 +99,17 @@ def plot_loss(loss):
 
 
 def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                  evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, data_json,
-                  thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js,
+                  evt_33number, base_data_dir, CC_dir, CX_dir, bad_js, num33_hc_js, number33_thick_js, data_json,
+                  thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js, full_135feature_js,
                   flag=0):  # flag=0,默认选最新最多的特征
 
     # 可备选的,使用的json数据,分别有: 135, 33, 97 dims-feature
-    X_list = [feature135_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js]
+    X_list = [full_135feature_js, feature135_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js]
     tmp = X_list[flag]
     if not os.path.exists(tmp):
         data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                          evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, data_json,
+                          evt_33number, base_data_dir, CC_dir, CX_dir, bad_js, num33_hc_js, number33_thick_js,
+                          data_json,
                           thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js).run()
         print("data process done!")
     else:
@@ -296,10 +297,24 @@ def data_info(X, Y):
                     print("\tDelta: {}".format(sum(abs(y_delta))))
 
 
+
+def concate_data(a, b, c):
+    js1 = json.load(open(a, 'r'))
+    js2 = json.load(open(b, 'r'))
+    all_js = dict()
+    for k,v in js1.items():
+        all_js[k] = v
+    for k, v in js2.items():
+        all_js[k] = v
+    data = json.dumps(all_js)
+    with open(c, 'w') as js_file:
+        js_file.write(data)
+
+
 if __name__ == "__main__":
 
     # 1train or 0modified_thickness
-    flag = 1
+    flag = 0
     # get_important_x()
 
     # 标准lab曲线
@@ -309,34 +324,44 @@ if __name__ == "__main__":
             0.26, 0.35, 0.41, 0.57, 0.64, 0.71, 0.9, 1.04, 1.17, 1.27, 1.43, 1.56, 1.82, 2.07, 2.4, 2.72, 3.02, 3.33,
             3.58, 3.87, 3.97, 4.34, 4.57, 4.73, 5.03, 5.45, 5.94]
 
-    base_data_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件'
-    evt_cc_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CC'
-    CC_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CC'
-    CX_dir = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件_7dirs\1.6&1.67_DVS_CX'
-    file1 = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#膜色文件与EVT文件对应表.xlsx'
-    file2 = r'D:\work\project\卡尔蔡司AR镀膜\文档s\蔡司资料0615\膜色数据.xlsx'
+    part_root_dir1 = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619'
+    root_dir = r'D:\work\project\卡尔蔡司AR镀膜\第二批7.1'
+    base_data_dir = os.path.join(root_dir, r'机台文件')
+    evt_cc_dir = os.path.join(root_dir, r'机台文件\1.6&1.67_DVS_CC')
+    CC_dir = os.path.join(root_dir, '机台文件', r'1.6&1.67_DVS_CC')
+    CX_dir = os.path.join(root_dir, '机台文件', r'1.6&1.67_DVS_CX')
+    file1 = os.path.join(root_dir, r'匹配关系.xlsx')
+    file2 = os.path.join(root_dir, r'33#膜色数据.xlsx')
     # 此文档用于关联周期信息,筛选相同膜厚设置值所对应的lab曲线
-    process_data = r'D:\work\project\卡尔蔡司AR镀膜\文档s\蔡司资料0615\工艺记录.xlsx'
+    process_data = os.path.join(root_dir, r'镀膜炉工艺记录.xlsx')
     # .json都是数据处理中需要落盘的信息
-    data_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thickness_lab_curve.json'
-    refine_data_json = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\refine_thickness_lab_curve.json'
-    oneone_evt_thickness = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\oneone_evt_thickness.json'
-    evt_33number = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\evt_33number.json'
+    data_js = os.path.join(root_dir, r'0701', 'thickness_lab_curve.json')
+    refine_data_json = os.path.join(root_dir, r'0701', 'refine_thickness_lab_curve.json')
+    bad_js = os.path.join(root_dir, r'0701', 'bad_thick_lab.json')
+    oneone_evt_thickness = os.path.join(root_dir, r'0701', 'oneone_evt_thickness.json')
+    evt_33number = os.path.join(root_dir, r'0701', 'evt_33number.json')
     # 加入3维耗材信息
-    num33_hc_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\33_hc.json'
-    number33_thick_js = r'D:\work\project\卡尔蔡司AR镀膜\ML_ZEISS\33number_thickness.json'
-    thick_hc_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick_hc_lab.json'
+    num33_hc_js = os.path.join(root_dir, r'0701', '33_hc.json')
+    number33_thick_js = os.path.join(root_dir, r'0701', '33number_thickness.json')
+    thick_hc_lab_js = os.path.join(root_dir, r'0701', r'thick_hc_lab.json')
     # 加入16维sensor列时序特征
-    thick14_hc3_sensor16_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick14hc3sensor16_lab.json'
+    thick14_hc3_sensor16_lab_js = os.path.join(root_dir, r'0701', 'thick14hc3sensor16_lab.json')
     # 加入64维 8step sensor时序特征
-    thick14_hc3_sensor64_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick14hc3sensor64_lab.json'
+    csv_dict_js = os.path.join(root_dir, r'0701', 'evtname_sensor_name_value.json')
+    thick14_hc3_sensor64_lab_js = os.path.join(root_dir, r'0701', 'thick14hc3sensor64_lab.json')
     # 再加入19列有意义数据的38维特征
-    feature135_lab_js = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\feature135_lab.json'
+    feature135_lab_js = os.path.join(root_dir, r'0701', 'feature135_lab.json')
+
+    # merge two_part_data_json
+    data_part1 = os.path.join(part_root_dir1, 'feature135_lab.json')
+    full_135feature_js = os.path.join(root_dir, r'0701', 'all.json')
+    # concate_data(data_part1, feature135_lab_js, full_135feature_js)
 
     # data process start
     X, Y = generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                         evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, number33_thick_js, thick_hc_lab_js,
-                         thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js)
+                         evt_33number, base_data_dir, CC_dir, CX_dir, bad_js, num33_hc_js, number33_thick_js,
+                         thick_hc_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js,
+                         full_135feature_js)
 
     # X[np.isnan(X)] = 0.0
     batch_size = X.shape[0]
@@ -369,4 +394,11 @@ if __name__ == "__main__":
         compare_res(best)
         # 怎么剔除异常点? 怎么使得每一个样本都刚好的逼近标准曲线？[膜厚设置值-实测>2*rate,考虑剔除]
     elif flag == 3:
-        data_info(X, Y)
+        # data_info(X, Y)
+        data_class = data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json,
+                                       oneone_evt_thickness,
+                                       evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, bad_js,
+                                       number33_thick_js, thick_hc_lab_js,
+                                       thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js)
+        # data_class.clean_data_machineid()
+        data_class.clean_data_nthickness()
