@@ -297,12 +297,11 @@ def data_info(X, Y):
                     print("\tDelta: {}".format(sum(abs(y_delta))))
 
 
-
 def concate_data(a, b, c):
     js1 = json.load(open(a, 'r'))
     js2 = json.load(open(b, 'r'))
     all_js = dict()
-    for k,v in js1.items():
+    for k, v in js1.items():
         all_js[k] = v
     for k, v in js2.items():
         all_js[k] = v
@@ -402,3 +401,44 @@ if __name__ == "__main__":
                                        thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js)
         # data_class.clean_data_machineid()
         data_class.clean_data_nthickness()
+
+
+
+
+'''
+lab曲线相识度度量:
+a = [11.27, 7.28, 5.08, 3.53, 2.08, 1.12, 0.77, 0.73, 0.64, 0.74, 1.18, 1.4, 1.6, 1.65, 1.73, 1.92, 2.02, 1.99, 1.84,
+     1.68, 1.61, 1.64, 1.65, 1.54, 1.3, 1.09, 0.96, 0.97, 0.98, 0.94, 0.86, 0.72, 0.59, 0.57, 0.51, 0.49, 0.49, 0.54,
+     0.51, 0.45, 0.37, 0.3, 0.27, 0.23, 0.2, 0.3, 0.26, 0.24, 0.22, 0.14, 0.17, 0.2, 0.23, 0.36, 0.31, 0.35, 0.39, 0.52,
+     0.52, 0.52, 0.56, 0.67, 0.78, 0.87, 1.06, 1.25, 1.5, 1.65, 1.85, 2.1, 2.29, 2.49, 2.7, 2.92, 3.14, 3.33, 3.62,
+     3.75, 4.1, 4.31, 4.67]
+
+best = [5.52, 3.53, 1.97, 1.28, 0.74, 0.7, 0.85, 1.05, 1.23, 1.43, 1.63, 1.82, 1.84, 1.8, 1.75, 1.73, 1.64, 1.49,
+        1.39, 1.31, 1.23, 1.16, 1.03, 0.91, 0.85, 0.86, 0.84, 0.77, 0.71, 0.64, 0.61, 0.61, 0.58, 0.56, 0.53, 0.46,
+        0.46, 0.44, 0.41, 0.43, 0.4, 0.39, 0.36, 0.25, 0.19, 0.17, 0.21, 0.19, 0.17, 0.17, 0.2, 0.2, 0.16, 0.20,
+        0.26, 0.35, 0.41, 0.57, 0.64, 0.71, 0.9, 1.04, 1.17, 1.27, 1.43, 1.56, 1.82, 2.07, 2.4, 2.72, 3.02, 3.33,
+        3.58, 3.87, 3.97, 4.34, 4.57, 4.73, 5.03, 5.45, 5.94]
+import numpy as np
+import matplotlib.pyplot as plt
+
+a_ = np.array(a)
+b_ = np.array(best)
+print(np.corrcoef([a_, b_]))
+#
+weights = [1 for i in range(81)]
+nms = [380 + i * 5 for i in range(81)]
+t = [380, 400, 405, 410, 435, 440, 445, 635, 640, 645, 780]
+for n in t:
+    weights[nms.index(n)] = 2
+
+res = [(a[i]-best[i])**2*weights[i] for i in range(81)]
+print(np.mean(res))
+plt.xlabel("Wave-length")
+plt.ylabel("Reflectance")
+
+plt.plot(nms, best, color='pink', label='best curve')
+plt.plot(nms, a, color='black', label='sample_curve')
+plt.legend()
+plt.show()
+
+'''
