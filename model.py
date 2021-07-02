@@ -301,6 +301,7 @@ def data_info(X, Y):
 def concate_data(a, b, c):
     js1 = json.load(open(a, 'r'))
     js2 = json.load(open(b, 'r'))
+    print("0610data_size: {}, 0701data_size: {}".format(len(js1), len(js2)))
     all_js = dict()
     for k, v in js1.items():
         all_js[k] = v
