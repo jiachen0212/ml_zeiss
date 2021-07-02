@@ -1,14 +1,14 @@
 # coding=utf-8
 import json
+import os
 
 import numpy as np
 
-
-# path = r'D:\work\project\第二批7.1\机台文件'
-# files = os.listdir(path)
-# for f in files:
-#     if '.7z' in f:
-#         os.remove(os.path.join(path, f))
+path = r'D:\work\project\卡尔蔡司AR镀膜\第二批7.1\机台文件'
+files = os.listdir(path)
+for f in files:
+    if '.7z' in f or '.zip' in f:
+        os.remove(os.path.join(path, f))
 
 
 def load_data(data_js):

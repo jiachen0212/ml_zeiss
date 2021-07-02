@@ -103,6 +103,7 @@ def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_j
                   thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js, full_135feature_js,
                   flag=0):  # flag=0,默认选最新最多的特征
 
+    concate_data(data_part1, feature135_lab_js, full_135feature_js)
     # 可备选的,使用的json数据,分别有: 135, 33, 97 dims-feature
     X_list = [full_135feature_js, feature135_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js]
     tmp = X_list[flag]
@@ -355,7 +356,6 @@ if __name__ == "__main__":
     # merge two_part_data_json
     data_part1 = os.path.join(part_root_dir1, 'feature135_lab.json')
     full_135feature_js = os.path.join(root_dir, r'0701', 'all.json')
-    # concate_data(data_part1, feature135_lab_js, full_135feature_js)
 
     if flag == 3:
         data_class = data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json,

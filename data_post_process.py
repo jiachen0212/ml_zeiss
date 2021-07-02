@@ -179,7 +179,7 @@ class data_post_process():
         '''
         evt_thick = dict()
         files = os.listdir(self.data_dir)
-        files = [a for a in files if 'evt' in a]
+        files = [a for a in files if ('evt' or 'EVT') in a]
         for file in files:
             thickness_list = []
             full_path = os.path.join(self.data_dir, file)
@@ -207,14 +207,18 @@ def evt_33(evt33, evt_dict, data_dir, evt_33number):
     '''
     wb = xlrd.open_workbook(evt33)
     data = wb.sheet_by_name('Sheet1')
-    title = data.row_values(0)
     info_title = ['OvenNo', 'FileID']
-    index1, index2 = title.index(info_title[0]), title.index(info_title[1])
+    for count in range(10):
+        try:
+            title = data.row_values(count)
+            index1, index2 = title.index(info_title[0]), title.index(info_title[1])
+            a = count+1
+            break
+        except:
+                continue
     rows = data.nrows
-    for i in range(1, rows):
-        # print(data.row_values(i))
-        evt_dict[(data.cell(i, index2).value).lower() + '.csv'] = data.cell(i,
-                                                                            index1).value  # evt_name统一成小写: evt21062916.csv
+    for i in range(a, rows):
+        evt_dict[(data.cell(i, index2).value).lower() + '.csv'] = data.cell(i, index1).value  # evt_name统一成小写: evt21062916.csv
     evt_dict_keys = list(evt_dict.keys())
     evt_cc_list = os.listdir(data_dir)
     for evt in evt_dict_keys:
@@ -242,16 +246,22 @@ def lab_curve33(membrane, evt_dict, data_js, data_dir, thickness_lab_curve):
     '''
     # 读取膜厚数据
     wb = xlrd.open_workbook(membrane)
-    data = wb.sheet_by_name(r'双面膜色曲线 (第二批)')  # Sheet1
+    # data = wb.sheet_by_name(r'双面膜色曲线 (第二批)')
+    data = wb.sheet_by_name(r'Sheet1')
     rows = data.nrows
-    title = data.row_values(1)
     need_title = ['AREquipmentSortNo', '380', '780']
-    num33_index, lab_index1, lab_index2 = title.index(need_title[0]), title.index(need_title[1]), title.index(
-        need_title[2])
     numberss_dict = dict()
     number33_lab_curve = dict()
-    for i in range(2, rows):
-        # print(data.row_values(i))
+    for count in range(10):
+        try:
+            title = data.row_values(count)
+            num33_index, lab_index1, lab_index2 = title.index(need_title[0]), title.index(need_title[1]), title.index(
+                need_title[2])
+            a = count+1
+            break
+        except:
+                continue
+    for i in range(a, rows):
         numberss_dict[data.cell(i, num33_index).value] = numberss_dict.get(data.cell(i, num33_index).value, 0) + 1
         # 我们取第四层的膜色曲线为基准
         if numberss_dict[data.cell(i, num33_index).value] == 4:
@@ -259,7 +269,7 @@ def lab_curve33(membrane, evt_dict, data_js, data_dir, thickness_lab_curve):
             # 剔除lab曲线少于81维的lab数据
             tmp = [i for i in tmp if i != '']
             if len(tmp) == 81:
-                number33_lab_curve[data.cell(i, 1).value] = tmp
+                number33_lab_curve[data.cell(i, num33_index).value] = tmp
     print(len(number33_lab_curve), 'number33_lab_curve')
     data = json.dumps(number33_lab_curve)
     with open(r'./num33_lab.json', 'w') as js_file:
@@ -329,13 +339,19 @@ def check_data(thickness_lab_curve, evt_dict, bad_thick_lab, bad_js):
 
 def get_evtpair_info(CC_dir, CX_dir, evt33, evt_pair, n_thickness):
     wb = xlrd.open_workbook(evt33)
-    data = wb.sheet_by_name('Sheet1')
-    title = data.row_values(0)
     info_title = ['OvenNo', 'FileID']
-    index1, index2 = title.index(info_title[0]), title.index(info_title[1])
+    data = wb.sheet_by_name('Sheet1')
+    for count in range(10):
+        try:
+            title = data.row_values(count)
+            index1, index2 = title.index(info_title[0]), title.index(info_title[1])
+            a = count+1
+            break
+        except:
+                continue
     number33_evts = dict()
     rows = data.nrows
-    for i in range(1, rows):
+    for i in range(a, rows):
         number33 = data.cell(i, index1).value
         if number33 not in number33_evts:
             number33_evts[number33] = []
@@ -413,16 +429,22 @@ def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness
     number33 = open(r'./33number.txt', 'w')
     wb = xlrd.open_workbook(process_data)
     data = wb.sheet_by_name('Sheet1')
-    title = data.row_values(0)
     info_title = ['反正面', '炉序号', '电子枪灯丝']
-    index1, index2, index3 = title.index(info_title[0]), title.index(info_title[1]), title.index(info_title[2])
+    for count in range(10):
+        try:
+            title = data.row_values(count)
+            index1, index2, index3 = title.index(info_title[0]), title.index(info_title[1]), title.index(info_title[2])
+            a = count+1
+            break
+        except:
+                continue
     rows = data.nrows
     number_time = dict()
     time_number = dict()
     finall_thick_lab = dict()
     oneone_evt_thickness = dict()
     number33_thick = dict()
-    for i in range(1, rows):
+    for i in range(a, rows):
         # 正背面, 与data_dir中的 CC or CX后缀对应
         if data.cell(i, index1).value == '背面':
             # 33121060707:电子枪数号
@@ -488,13 +510,20 @@ def get_hc_value(process_data, num33_hc_js, face):
         num33_list.append(nub33[:-1])
     wb = xlrd.open_workbook(process_data)
     data = wb.sheet_by_name('Sheet1')
-    title = data.row_values(0)
     info_title = ['炉序号', '反正面', '离子枪灯丝', '电子枪灯丝', '挡板']
-    index1, index2, index3, index4, index5 = title.index(info_title[0]), title.index(info_title[1]), title.index(
-        info_title[2]), title.index(info_title[3]), title.index(info_title[4])
+    for count in range(10):
+        try:
+            title = data.row_values(count)
+            index1, index2, index3, index4, index5 = title.index(info_title[0]), title.index(
+                info_title[1]), title.index(
+                info_title[2]), title.index(info_title[3]), title.index(info_title[4])
+            a = count+1
+            break
+        except:
+                continue
     rows = data.nrows
     number33_dsdzqdb = dict()
-    for i in range(1, rows):
+    for i in range(a, rows):
         # 依然是读取的背面行的数据,正面镀膜完后再背面..耗材去背面的更合理
         if data.cell(i, index1).value in num33_list and data.cell(i, index2).value == face:
             # print(data.row_values(i))
