@@ -219,7 +219,6 @@ def evt_64sensor(csv_dict_js, sub_sen_list):
     evt_64sensor = dict()
     evt_sen_name_value = json.load(open(csv_dict_js, 'r'))
     for evtname, v in evt_sen_name_value.items():
-        print(evtname)
         evt_8steps_sensor_feature = []  # len=64  8*4*2
         for process, sensor_dict in v.items():
             for sen_n, sen_v in sensor_dict.items():
@@ -233,7 +232,6 @@ def evt_64sensor(csv_dict_js, sub_sen_list):
 
 def get8step_sensor_feature(base_path, csv_dict_js, thick14_hc3_sensor80_lab_js, thick14_hc3_sensor16_lab_js,
                             oneone_evt_thick_js, thick7_lab_js, sub_sen_list):
-
     '''
     关联 evt和 sensor_value,获取工艺的8个steo起始时间,并对应计算各个阶段内,thickness,rate的时序特征. 8*4*2 = 64维
 
@@ -260,9 +258,9 @@ def get8step_sensor_feature(base_path, csv_dict_js, thick14_hc3_sensor80_lab_js,
         lab = thick7_lab[thick7]
         try:
             old_thick_hc_sensor = lab_thick_hc_sen16_lab[''.join(str(i) for i in lab)]  # 14+3+16维
+            new_thick_hc_sensor = old_thick_hc_sensor + evt_64sensor_dict[evt + '.csv']
         except:
             continue
-        new_thick_hc_sensor = old_thick_hc_sensor + evt_64sensor_dict[evt + '.csv']
         thick14hc3sensor16sensor64_lab[new_thick_hc_sensor] = lab
 
     # 落盘

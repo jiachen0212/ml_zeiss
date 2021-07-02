@@ -326,9 +326,10 @@ if __name__ == "__main__":
     part_root_dir1 = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619'
     root_dir = r'D:\work\project\卡尔蔡司AR镀膜\第二批7.1'
     base_data_dir = os.path.join(root_dir, r'机台文件')
-    evt_cc_dir = os.path.join(root_dir, r'机台文件\1.6&1.67_DVS_CC')
-    CC_dir = os.path.join(root_dir, r'机台文件\1.6&1.67_DVS_CC')
-    CX_dir = os.path.join(root_dir, r'机台文件\1.6&1.67_DVS_CX')
+    # evt_cc_dir = os.path.join(root_dir, r'机台文件\1.6&1.67_DVS_CC')
+    evt_cc_dir = os.path.join(root_dir, r'机台文件')
+    CC_dir = os.path.join(root_dir, r'机台文件')
+    CX_dir = os.path.join(root_dir, r'机台文件')
     file1 = os.path.join(root_dir, r'匹配关系.xlsx')
     file2 = os.path.join(root_dir, r'33#膜色数据.xlsx')
     # 此文档用于关联周期信息,筛选相同膜厚设置值所对应的lab曲线

@@ -260,6 +260,7 @@ def lab_curve33(membrane, evt_dict, data_js, data_dir, thickness_lab_curve):
             tmp = [i for i in tmp if i != '']
             if len(tmp) == 81:
                 number33_lab_curve[data.cell(i, 1).value] = tmp
+    print(len(number33_lab_curve), 'number33_lab_curve')
     data = json.dumps(number33_lab_curve)
     with open(r'./num33_lab.json', 'w') as js_file:
         js_file.write(data)
@@ -267,7 +268,6 @@ def lab_curve33(membrane, evt_dict, data_js, data_dir, thickness_lab_curve):
     # 借助 evtname:33number、33number:lab_curv,获得evtname:lab_curv关联
     # get: evtname:lab_curve
     evt_name_lab_curve = dict()
-    print(len(evt_dict), 'evt_dict')
     for evt_name, number in evt_dict.items():
         if number in number33_lab_curve:
             evt_name_lab_curve[evt_name] = number33_lab_curve[number]
