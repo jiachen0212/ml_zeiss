@@ -255,8 +255,9 @@ def get8step_sensor_feature(base_path, csv_dict_js, thick14_hc3_sensor80_lab_js,
     for k, v in thick_hc_sen16_lab.items():
         lab_thick_hc_sen16_lab[''.join(str(i) for i in v[1])] = k  # lab：膜厚耗材sensor16
     for evt, thick7 in evt_7thick.items():
-        lab = thick7_lab[thick7]
         try:
+            lab = thick7_lab[thick7]
+            print(lab)
             old_thick_hc_sensor = lab_thick_hc_sen16_lab[''.join(str(i) for i in lab)]  # 14+3+16维
             new_thick_hc_sensor = old_thick_hc_sensor + evt_64sensor_dict[evt + '.csv']
         except:
