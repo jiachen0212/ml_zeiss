@@ -313,7 +313,7 @@ def concate_data(a, b, c):
 if __name__ == "__main__":
 
     # 1train or 0modified_thickness
-    flag = 0
+    flag = 1
     # get_important_x()
 
     # 标准lab曲线
@@ -327,8 +327,8 @@ if __name__ == "__main__":
     root_dir = r'D:\work\project\卡尔蔡司AR镀膜\第二批7.1'
     base_data_dir = os.path.join(root_dir, r'机台文件')
     evt_cc_dir = os.path.join(root_dir, r'机台文件\1.6&1.67_DVS_CC')
-    CC_dir = os.path.join(root_dir, '机台文件', r'1.6&1.67_DVS_CC')
-    CX_dir = os.path.join(root_dir, '机台文件', r'1.6&1.67_DVS_CX')
+    CC_dir = os.path.join(root_dir, r'机台文件\1.6&1.67_DVS_CC')
+    CX_dir = os.path.join(root_dir, r'机台文件\1.6&1.67_DVS_CX')
     file1 = os.path.join(root_dir, r'匹配关系.xlsx')
     file2 = os.path.join(root_dir, r'33#膜色数据.xlsx')
     # 此文档用于关联周期信息,筛选相同膜厚设置值所对应的lab曲线
@@ -356,12 +356,19 @@ if __name__ == "__main__":
     full_135feature_js = os.path.join(root_dir, r'0701', 'all.json')
     # concate_data(data_part1, feature135_lab_js, full_135feature_js)
 
-    # data process start
+    if flag == 3:
+        data_class = data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json,
+                                       oneone_evt_thickness,
+                                       evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, bad_js,
+                                       number33_thick_js, thick_hc_lab_js,
+                                       thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js)
+        data_class.clean_data_machineid()
+        data_class.clean_data_nthickness()
+
     X, Y = generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                          evt_33number, base_data_dir, CC_dir, CX_dir, bad_js, num33_hc_js, number33_thick_js,
                          thick_hc_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js,
                          full_135feature_js)
-
     # X[np.isnan(X)] = 0.0
     batch_size = X.shape[0]
     input_dim = X.shape[-1]
@@ -392,18 +399,7 @@ if __name__ == "__main__":
             is_train=False)
         compare_res(best)
         # 怎么剔除异常点? 怎么使得每一个样本都刚好的逼近标准曲线？[膜厚设置值-实测>2*rate,考虑剔除]
-    elif flag == 3:
         # data_info(X, Y)
-        data_class = data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json,
-                                       oneone_evt_thickness,
-                                       evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, bad_js,
-                                       number33_thick_js, thick_hc_lab_js,
-                                       thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js)
-        # data_class.clean_data_machineid()
-        data_class.clean_data_nthickness()
-
-
-
 
 '''
 lab曲线相识度度量:
