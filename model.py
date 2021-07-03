@@ -17,6 +17,7 @@ from utils.my_mse_loss import my_mse_loss
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 import matplotlib.pyplot as plt
 from util import cnames
+from util import calculate_Lab
 from torch.autograd import Variable
 
 colors = list(cnames.keys())
@@ -133,12 +134,12 @@ def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_j
     bad_evt_name = []
     for i in range(Y.shape[0]):
         if float(Y[i][import_index]) > 4.5:
-            print(Y[i][import_index])
+            # print(Y[i][import_index])
             bad_evt_name.append(X[i][-1])
             f.write(X[i][-1]+',')
             count += 1
-    print(count)
-    print(bad_evt_name)
+    # print(count)
+    print('bad 750 rate_value: {}'.format(bad_evt_name))
     X = [i[:-1] for i in X]  # 把evt_name从x的最后一位剔除
     X = [[float(i) for i in a] for a in X]
     X = np.array(X)
@@ -203,7 +204,7 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_datalo
                 train_loss += loss.item()
             train_loss /= len(train_dataloader)
             loss_list.append(train_loss)
-            if (epoch + 1) % 100 == 0:
+            if (epoch + 1) % 1000 == 0:
                 model.eval()
                 for ii, (input, org) in enumerate(val_dataloader):
                     # print(input.shape, 'val')
@@ -331,7 +332,7 @@ if __name__ == "__main__":
     import_index = x.index(750)
 
     # 1train or 0modified_thickness
-    flag = 1
+    flag = 3
     # get_important_x()
 
     # 标准lab曲线
@@ -340,7 +341,7 @@ if __name__ == "__main__":
             0.46, 0.44, 0.41, 0.43, 0.4, 0.39, 0.36, 0.25, 0.19, 0.17, 0.21, 0.19, 0.17, 0.17, 0.2, 0.2, 0.16, 0.20,
             0.26, 0.35, 0.41, 0.57, 0.64, 0.71, 0.9, 1.04, 1.17, 1.27, 1.43, 1.56, 1.82, 2.07, 2.4, 2.72, 3.02, 3.33,
             3.58, 3.87, 3.97, 4.34, 4.57, 4.73, 5.03, 5.45, 5.94]
-
+    _ = calculate_Lab(best)
     part_root_dir1 = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619'
     root_dir = r'D:\work\project\卡尔蔡司AR镀膜\第二批7.1'
     base_data_dir = os.path.join(root_dir, r'机台文件')

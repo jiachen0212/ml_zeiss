@@ -557,65 +557,9 @@ if __name__ == "__main__":
     dir_ = r'D:\work\project\卡尔蔡司AR镀膜\第二批7.1\机台文件'
     # same_machine_recip(dir_)
 
-    import numpy as np
 
 
-    from math import fabs, copysign
-    '''
-    输入lab曲线 best 即可得到lab值
-    '''
-    def fun1(x, y, s):
-        a = np.sum([x[i]*s[i] for i in range(81)])
-        b = np.sum([y[i]*s[i] for i in range(81)])
-        res = 100 * a / b
-        return res
 
-    def fun2(x, y, s, r):
-        a = np.sum([x[i]*s[i]*r[i] for i in range(81)])
-        b = np.sum([y[i]*s[i] for i in range(81)])
-        res = a / b
-        return res
-
-    def fun3(Xxn):
-        if Xxn > 0.008856:
-            fXxn = copysign(fabs(Xxn) ** (1 / 3), Xxn)
-        else:
-            fXxn = 7.787 * Xxn + 16 / 116
-
-        return fXxn
-
-    best = [5.52, 3.53, 1.97, 1.28, 0.74, 0.7, 0.85, 1.05, 1.23, 1.43, 1.63, 1.82, 1.84, 1.8, 1.75, 1.73, 1.64, 1.49,
-            1.39, 1.31, 1.23, 1.16, 1.03, 0.91, 0.85, 0.86, 0.84, 0.77, 0.71, 0.64, 0.61, 0.61, 0.58, 0.56, 0.53, 0.46,
-            0.46, 0.44, 0.41, 0.43, 0.4, 0.39, 0.36, 0.25, 0.19, 0.17, 0.21, 0.19, 0.17, 0.17, 0.2, 0.2, 0.16, 0.20,
-            0.26, 0.35, 0.41, 0.57, 0.64, 0.71, 0.9, 1.04, 1.17, 1.27, 1.43, 1.56, 1.82, 2.07, 2.4, 2.72, 3.02, 3.33,
-            3.58, 3.87, 3.97, 4.34, 4.57, 4.73, 5.03, 5.45, 5.94]
-    remda = [380+5*i for i in range(81)]
-    XYZ_fun = r'D:\work\project\卡尔蔡司AR镀膜\文档s\蔡司资料0615\Lab计算及膜厚范围.xlsx'
-    wb = xlrd.open_workbook(XYZ_fun)
-    data = wb.sheet_by_name(r'色分配函数')
-    fx = data.col_values(2)[4:]
-    # print(fx)
-    fy = data.col_values(3)[4:]
-    fz = data.col_values(4)[4:]
-    Xn = fun1(fx, fy, remda)
-    Yn = fun1(fy, fy, remda)
-    Zn = fun1(fz, fy, remda)
-    X = fun2(fx, fy, remda, best)
-    Y = fun2(fy, fy, remda, best)
-    Z = fun2(fz, fy, remda, best)
-    Xxn = X / Xn
-    Yyn = Y / Yn
-    Zzn = Z / Zn
-    fXxn = fun3(Xxn)
-    fYyn = fun3(Yyn)
-    fZzn = fun3(Zzn)
-    if Yyn > 0.008856:
-        L = 116 * copysign(fabs(Yyn) ** (1 / 3), Yyn) - 16
-    else:
-        L = 903.3*Yyn
-    a = 500 * (fXxn - fYyn)
-    b = 200 * (fYyn - fZzn)
-    print(L, a, b)
 
 
 
