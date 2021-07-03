@@ -246,8 +246,8 @@ def lab_curve33(membrane, evt_dict, data_js, data_dir, thickness_lab_curve):
     '''
     # 读取膜厚数据
     wb = xlrd.open_workbook(membrane)
-    # data = wb.sheet_by_name(r'双面膜色曲线 (第二批)')
-    data = wb.sheet_by_name(r'Sheet1')
+    data = wb.sheet_by_name(r'双面膜色曲线 (第二批)')
+    # data = wb.sheet_by_name(r'Sheet1')
     rows = data.nrows
     need_title = ['AREquipmentSortNo', '380', '780']
     numberss_dict = dict()
@@ -676,7 +676,9 @@ def all_usful_sensor_except_thickness(csv_dir, org_refine_thick_lab, oneone_evt_
         except:
             continue
         if feature38_sensor != '':
+            # print(old_thick_hc_sensor, thick7, evt)
             new_thick_hc_sensor = old_thick_hc_sensor + feature38_sensor
+            new_thick_hc_sensor += evt   # key: feature135+evt_name
             feature135_lab[new_thick_hc_sensor] = lab
 
     # 落盘

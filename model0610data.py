@@ -327,7 +327,7 @@ def concate_data(a, b, c):
 if __name__ == "__main__":
 
     # 1train or 0modified_thickness
-    flag = 1
+    flag = 3
     # get_important_x()
 
     # 标准lab曲线
@@ -376,8 +376,8 @@ if __name__ == "__main__":
                                        evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, bad_js,
                                        number33_thick_js, thick_hc_lab_js,
                                        thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js)
-        data_class.clean_data_machineid()
-        data_class.clean_data_nthickness()
+        # data_class.clean_data_machineid()
+        # data_class.clean_data_nthickness()
 
     X, Y = generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                          evt_33number, base_data_dir, CC_dir, CX_dir, bad_js, num33_hc_js, number33_thick_js,

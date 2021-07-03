@@ -122,15 +122,28 @@ def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_j
     Y = []
     for thicknesshc, lab_curve in thicknesshc_curve.items():
         Y.append(lab_curve)
+    Y = [[float(i) for i in a] for a in Y]
+    Y = np.array(Y)
     X = list(thicknesshc_curve.keys())
     X = [i[:-1] for i in X]
     X = [i.split(',') for i in X]
+    # check 750 反射率
+    f = open(r'./bad_750.txt', 'w')
+    count = 0
+    bad_evt_name = []
+    for i in range(Y.shape[0]):
+        if float(Y[i][import_index]) > 4.5:
+            print(Y[i][import_index])
+            bad_evt_name.append(X[i][-1])
+            f.write(X[i][-1]+',')
+            count += 1
+    print(count)
+    print(bad_evt_name)
+    X = [i[:-1] for i in X]  # 把evt_name从x的最后一位剔除
     X = [[float(i) for i in a] for a in X]
     X = np.array(X)
     # 手动调整某基层膜厚的值,看看曲线在哪些频段会产生很大变化否?
     # X = [[i[0],i[1],i[2]*1.5,i[3]*1.5,i[4]*2,i[5]*2,i[6]] for i in X]
-    Y = [[float(i) for i in a] for a in Y]
-    Y = np.array(Y)
     print(X.shape, Y.shape)
     return X, Y
 
@@ -173,7 +186,7 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_datalo
         loss_list = []
         for epoch in range(epochs):
             train_loss = 0
-            print('-' * 10, 'epoch: {}'.format(epoch + 1), '-' * 10)
+            # print('-' * 10, 'epoch: {}'.format(epoch + 1), '-' * 10)
             for ii, (data, label) in enumerate(train_dataloader):
                 # print(data[0])
                 # print(label[0])
@@ -184,13 +197,13 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_datalo
                 score = model(input)
                 loss = compute_loss(score, target)
                 # print(metrics.mean_squared_error(score.detach().numpy(), target.detach().numpy()))
-                print('-' * 10, 'epoch {} loss: {}'.format(epoch, loss), '-' * 10)
+                # print('-' * 10, 'epoch {} loss: {}'.format(epoch, loss), '-' * 10)
                 loss.backward()
                 optimizer.step()
                 train_loss += loss.item()
             train_loss /= len(train_dataloader)
             loss_list.append(train_loss)
-            if (epoch + 1) % 300 == 0:
+            if (epoch + 1) % 100 == 0:
                 model.eval()
                 for ii, (input, org) in enumerate(val_dataloader):
                     # print(input.shape, 'val')
@@ -314,6 +327,9 @@ def concate_data(a, b, c):
 
 if __name__ == "__main__":
 
+    x = [380 + i * 5 for i in range(81)]
+    import_index = x.index(750)
+
     # 1train or 0modified_thickness
     flag = 1
     # get_important_x()
@@ -364,13 +380,14 @@ if __name__ == "__main__":
                                        evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, bad_js,
                                        number33_thick_js, thick_hc_lab_js,
                                        thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js)
-        data_class.clean_data_machineid()
-        data_class.clean_data_nthickness()
+        # data_class.clean_data_machineid()
+        # data_class.clean_data_nthickness()
 
     X, Y = generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                          evt_33number, base_data_dir, CC_dir, CX_dir, bad_js, num33_hc_js, number33_thick_js,
                          thick_hc_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js,
                          full_135feature_js)
+
     # X[np.isnan(X)] = 0.0
     batch_size = X.shape[0]
     input_dim = X.shape[-1]
@@ -383,7 +400,7 @@ if __name__ == "__main__":
     scale = StandardScaler(with_mean=True, with_std=True)
     # 注意后面观察膜厚的变化,需要用到它的逆操作: X = scale.inverse_transform(X)
     X_ = scale.fit_transform(X)
-    train_x, test_x, train_y, test_y = train_test_split(X_, Y, test_size=0.25, random_state=3)
+    train_x, test_x, train_y, test_y = train_test_split(X_, Y, test_size=0.35, random_state=3)
     print("train size: {}".format(train_x.shape[0]))
     print("validation size: {}".format(test_x.shape[0]))
     train_dataloader = DataLoader((train_x, train_y), batch_size=batch_size, batch_first=False, device=device)
