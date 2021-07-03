@@ -13,11 +13,11 @@ from data_load import DataLoader
 from data_post_process import data_post_process
 from mlp_torch import MLP
 from utils.my_mse_loss import my_mse_loss
-
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 import matplotlib.pyplot as plt
 from util import cnames
 from util import calculate_Lab
+from util import Select_feature
 from torch.autograd import Variable
 
 colors = list(cnames.keys())
@@ -124,7 +124,6 @@ def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_j
     for thicknesshc, lab_curve in thicknesshc_curve.items():
         Y.append(lab_curve)
     Y = [[float(i) for i in a] for a in Y]
-    Y = np.array(Y)
     X = list(thicknesshc_curve.keys())
     X = [i[:-1] for i in X]
     X = [i.split(',') for i in X]
@@ -132,7 +131,7 @@ def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_j
     f = open(r'./bad_750.txt', 'w')
     count = 0
     bad_evt_name = []
-    for i in range(Y.shape[0]):
+    for i in range(len(Y)):
         if float(Y[i][import_index]) > 4.5:
             # print(Y[i][import_index])
             bad_evt_name.append(X[i][-1])
@@ -145,6 +144,10 @@ def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_j
     X = np.array(X)
     # 手动调整某基层膜厚的值,看看曲线在哪些频段会产生很大变化否?
     # X = [[i[0],i[1],i[2]*1.5,i[3]*1.5,i[4]*2,i[5]*2,i[6]] for i in X]
+    # added 0703
+    # 对除14层膜厚之外的121维特征进行筛选
+    X = Select_feature(X, Y)
+    Y = np.array(Y)
     print(X.shape, Y.shape)
     return X, Y
 
@@ -332,7 +335,7 @@ if __name__ == "__main__":
     import_index = x.index(750)
 
     # 1train or 0modified_thickness
-    flag = 3
+    flag = 1
     # get_important_x()
 
     # 标准lab曲线

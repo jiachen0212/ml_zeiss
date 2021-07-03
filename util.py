@@ -1,4 +1,12 @@
 # coding=utf-8
+from sklearn.feature_selection import SelectKBest, VarianceThreshold
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.feature_selection import f_regression
+import numpy as np
+from math import fabs, copysign
+import xlrd
+
 
 # plot colre_names:
 cnames = {
@@ -143,15 +151,10 @@ cnames = {
     'yellow': '#FFFF00',
     'yellowgreen': '#9ACD32'}
 
-from math import fabs, copysign
-import numpy as np
-import xlrd
 
 '''
 输入lab曲线 best 即可得到lab值
 '''
-
-
 def fun1(x, y, s):
     a = np.sum([x[i] * s[i] for i in range(81)])
     b = np.sum([y[i] * s[i] for i in range(81)])
@@ -208,3 +211,45 @@ def calculate_Lab(best):
     b = 200 * (fYyn - fZzn)
     print("Lab value: L: {}, a: {}, b: {}".format(L, a, b))
     return L, a, b
+
+
+
+
+def top_k_feature(remed, Y, X, all, n):
+    Y = np.array([a[remed] for a in Y])
+    X_slim = SelectKBest(f_regression, k=n).fit_transform(X, Y)
+    a = X[0].tolist()
+    b = X_slim[0].tolist()
+    for i in b:
+        all.append(a.index(i))
+
+def Select_feature(X, Y):
+    '''
+
+    :param X: numpy
+    :param Y: list
+    :return:
+    '''
+    import_index = [0, 5, 12, 52, 74, 80]
+    # 对14层膜厚之后的121维特征做重要性筛选
+    X = [a[14:] for a in X]
+    # X数据规整化
+    scale = StandardScaler(with_mean=True, with_std=True)
+    X = scale.fit_transform(X)
+    # sklearn 实现特征构造
+    # X = PolynomialFeatures(degree=2).fit_transform(X)
+    all = []
+    for i in import_index:
+        # 每个频段选top20
+        top_k_feature(i, Y, X, all, n=20)
+    slim_feature = list(set(all))
+    print("特征筛选后的特征维度: {}".format(len(slim_feature)))
+    # X_slim = None
+    X_slim = X[:, :15]  # 244,15
+    for ind in slim_feature:
+        if X_slim is not None:
+            tmp = np.reshape(X[:, ind], (-1, 1))
+            X_slim = np.hstack((X_slim, tmp))
+        else:
+            X_slim = X[:, ind]
+    return X_slim
