@@ -679,8 +679,19 @@ def all_usful_sensor_except_thickness(csv_dir, org_refine_thick_lab, oneone_evt_
         if feature38_sensor != '':
             # print(old_thick_hc_sensor, thick7, evt)
             new_thick_hc_sensor = old_thick_hc_sensor + feature38_sensor
+            print(len(new_thick_hc_sensor.split(',')))
             new_thick_hc_sensor += evt  # key: feature135+evt_name
             feature135_lab[new_thick_hc_sensor] = lab
+
+    len_ = 0
+    for k, v in feature135_lab.items():
+        len_ = len(k.split(','))
+        break
+    for k, v in feature135_lab.items():
+        l = len(k.split(','))
+        if l != len_:
+            print(l)
+            del feature135_lab[k]
 
     # 落盘
     js = json.dumps(feature135_lab)

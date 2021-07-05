@@ -259,6 +259,7 @@ def get8step_sensor_feature(base_path, csv_dict_js, thick14_hc3_sensor80_lab_js,
     thick_hc_sen16_lab = json.load(open(thick14_hc3_sensor16_lab_js, 'r'))
     lab_thick_hc_sen16_lab = dict()
     for k, v in thick_hc_sen16_lab.items():
+        print(len(k.split(',')))
         lab_thick_hc_sen16_lab[''.join(str(i) for i in v[1])] = k  # lab：膜厚耗材sensor16
     for evt, thick7 in evt_7thick.items():
         try:

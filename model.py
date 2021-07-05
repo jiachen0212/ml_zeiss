@@ -100,7 +100,7 @@ def plot_loss(loss):
     plt.show()
 
 
-def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
+def generate_data(data_part1, file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                   evt_33number, base_data_dir, CC_dir, CX_dir, bad_js, num33_hc_js, number33_thick_js, data_json,
                   thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js, full_135feature_js,
                   flag=0):  # flag=0,默认选最新最多的特征
@@ -126,30 +126,29 @@ def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_j
         Y.append(lab_curve)
     Y = [[float(i) for i in a] for a in Y]
     X = list(thicknesshc_curve.keys())
-    X = [i[:-1] for i in X]
+    # X = [i[:-1] for i in X]
     X = [i.split(',') for i in X]
+    print("all dara_lens: {}".format(len(X)))
     # check 750 反射率
     f = open(r'./bad_750.txt', 'w')
     count = 0
     bad_evt_name = []
     for i in range(len(Y)):
         if float(Y[i][import_index]) > 4.5:
-            # print(Y[i][import_index])
             bad_evt_name.append(X[i][-1])
             f.write(X[i][-1] + ',')
             count += 1
-    # print(count)
-    print('bad 750 rate_value: {}'.format(bad_evt_name))
+    print('bad 750 rate_value: {}'.format(len(bad_evt_name)))
     X = [i[:-1] for i in X]  # 把evt_name从x的最后一位剔除
     X = [[float(i) for i in a] for a in X]
-    X = np.array(X)
     # 手动调整某基层膜厚的值,看看曲线在哪些频段会产生很大变化否?
     # X = [[i[0],i[1],i[2]*1.5,i[3]*1.5,i[4]*2,i[5]*2,i[6]] for i in X]
     # added 0703
     # 对除14层膜厚之外的121维特征进行筛选
     X = Select_feature(X, Y)
     Y = np.array(Y)
-    print(X.shape, Y.shape)
+    # X = np.array(X)
+    # print(X.shape, Y.shape)
     return X, Y
 
 
@@ -319,7 +318,7 @@ def data_info(X, Y):
 def concate_data(a, b, c):
     js1 = json.load(open(a, 'r'))
     js2 = json.load(open(b, 'r'))
-    print("0610data_size: {}, 0701data_size: {}".format(len(js1), len(js2)))
+    print("pre_data_size: {}, cur_data_size: {}".format(len(js1), len(js2)))
     all_js = dict()
     for k, v in js1.items():
         all_js[k] = v
@@ -336,7 +335,7 @@ if __name__ == "__main__":
     import_index = x.index(750)
 
     # 1train or 0modified_thickness
-    flag = 3
+    flag = 1
     # get_important_x()
 
     # 标准lab曲线
@@ -346,7 +345,7 @@ if __name__ == "__main__":
             0.26, 0.35, 0.41, 0.57, 0.64, 0.71, 0.9, 1.04, 1.17, 1.27, 1.43, 1.56, 1.82, 2.07, 2.4, 2.72, 3.02, 3.33,
             3.58, 3.87, 3.97, 4.34, 4.57, 4.73, 5.03, 5.45, 5.94]
     _ = calculate_Lab(best)
-    part_root_dir1 = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619'
+    part_root_dir1 = r'D:\work\project\卡尔蔡司AR镀膜\第二批7.1\0701'
     root_dir = r'D:\work\project\卡尔蔡司AR镀膜\第三批'
     base_data_dir = os.path.join(root_dir, r'33机台文件')
     sub_dir = r'0705'
@@ -380,7 +379,7 @@ if __name__ == "__main__":
     feature135_lab_js = os.path.join(root_dir, sub_dir, 'feature135_lab.json')
 
     # merge two_part_data_json
-    data_part1 = os.path.join(part_root_dir1, 'feature135_lab.json')
+    data_part1 = os.path.join(part_root_dir1, 'all.json')
     full_135feature_js = os.path.join(root_dir, sub_dir, 'all.json')
 
     if flag == 3:
@@ -392,7 +391,7 @@ if __name__ == "__main__":
         # data_class.clean_data_machineid()
         # data_class.clean_data_nthickness()
 
-    X, Y = generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
+    X, Y = generate_data(data_part1, file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
                          evt_33number, base_data_dir, CC_dir, CX_dir, bad_js, num33_hc_js, number33_thick_js,
                          thick_hc_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js,
                          full_135feature_js)
@@ -409,7 +408,7 @@ if __name__ == "__main__":
     scale = StandardScaler(with_mean=True, with_std=True)
     # 注意后面观察膜厚的变化,需要用到它的逆操作: X = scale.inverse_transform(X)
     X_ = scale.fit_transform(X)
-    train_x, test_x, train_y, test_y = train_test_split(X_, Y, test_size=0.35, random_state=3)
+    train_x, test_x, train_y, test_y = train_test_split(X_, Y, test_size=0.25, random_state=3)
     print("train size: {}".format(train_x.shape[0]))
     print("validation size: {}".format(test_x.shape[0]))
     train_dataloader = DataLoader((train_x, train_y), batch_size=batch_size, batch_first=False, device=device)

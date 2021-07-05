@@ -6,7 +6,6 @@ import shutil
 import numpy as np
 import pandas as pd
 import tsfresh as tsf
-import xlrd
 
 '''
 peak峰值个数,峰值
@@ -556,14 +555,5 @@ if __name__ == "__main__":
     #                                   feature135_lab_js)
     dir_ = r'D:\work\project\卡尔蔡司AR镀膜\第二批7.1\机台文件'
     # same_machine_recip(dir_)
-
-
-
-
-
-
-
-
-
 
 

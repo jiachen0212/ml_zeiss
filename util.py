@@ -1,12 +1,11 @@
 # coding=utf-8
-from sklearn.feature_selection import SelectKBest, VarianceThreshold
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.feature_selection import f_regression
-import numpy as np
 from math import fabs, copysign
-import xlrd
 
+import numpy as np
+import xlrd
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import f_regression
+from sklearn.preprocessing import StandardScaler
 
 # plot colre_names:
 cnames = {
@@ -151,21 +150,24 @@ cnames = {
     'yellow': '#FFFF00',
     'yellowgreen': '#9ACD32'}
 
-
 '''
 输入lab曲线 best 即可得到lab值
 '''
+
+
 def fun1(x, y, s):
     a = np.sum([x[i] * s[i] for i in range(81)])
     b = np.sum([y[i] * s[i] for i in range(81)])
     res = 100 * a / b
     return res
 
+
 def fun2(x, y, s, r):
     a = np.sum([x[i] * s[i] * r[i] for i in range(81)])
     b = np.sum([y[i] * s[i] for i in range(81)])
     res = a / b
     return res
+
 
 def fun3(Xxn):
     if Xxn > 0.008856:
@@ -174,6 +176,7 @@ def fun3(Xxn):
         fXxn = 7.787 * Xxn + 16 / 116
 
     return fXxn
+
 
 def calculate_Lab(best):
     # best = [5.52, 3.53, 1.97, 1.28, 0.74, 0.7, 0.85, 1.05, 1.23, 1.43, 1.63, 1.82, 1.84, 1.8, 1.75, 1.73, 1.64, 1.49,
@@ -213,8 +216,6 @@ def calculate_Lab(best):
     return L, a, b
 
 
-
-
 def top_k_feature(remed, Y, X, all, n):
     Y = np.array([a[remed] for a in Y])
     X_slim = SelectKBest(f_regression, k=n).fit_transform(X, Y)
@@ -222,6 +223,7 @@ def top_k_feature(remed, Y, X, all, n):
     b = X_slim[0].tolist()
     for i in b:
         all.append(a.index(i))
+
 
 def Select_feature(X, Y):
     '''
@@ -233,6 +235,8 @@ def Select_feature(X, Y):
     import_index = [0, 5, 12, 52, 74, 80]
     # 对14层膜厚之后的121维特征做重要性筛选
     X = [a[14:] for a in X]
+    X = np.array(X)
+    X[np.isnan(X)] = 0.0
     # X数据规整化
     scale = StandardScaler(with_mean=True, with_std=True)
     X = scale.fit_transform(X)
@@ -245,7 +249,7 @@ def Select_feature(X, Y):
     slim_feature = list(set(all))
     print("特征筛选后的特征维度: {}".format(len(slim_feature)))
     # X_slim = None
-    X_slim = X[:, :15]  # 244,15
+    X_slim = X[:, :14]  # n,14
     for ind in slim_feature:
         if X_slim is not None:
             tmp = np.reshape(X[:, ind], (-1, 1))
