@@ -212,13 +212,14 @@ def evt_33(evt33, evt_dict, data_dir, evt_33number):
         try:
             title = data.row_values(count)
             index1, index2 = title.index(info_title[0]), title.index(info_title[1])
-            a = count+1
+            a = count + 1
             break
         except:
-                continue
+            continue
     rows = data.nrows
     for i in range(a, rows):
-        evt_dict[(data.cell(i, index2).value).lower() + '.csv'] = data.cell(i, index1).value  # evt_name统一成小写: evt21062916.csv
+        evt_dict[(data.cell(i, index2).value).lower() + '.csv'] = data.cell(i,
+                                                                            index1).value  # evt_name统一成小写: evt21062916.csv
     evt_dict_keys = list(evt_dict.keys())
     evt_cc_list = os.listdir(data_dir)
     for evt in evt_dict_keys:
@@ -246,10 +247,10 @@ def lab_curve33(membrane, evt_dict, data_js, data_dir, thickness_lab_curve):
     '''
     # 读取膜厚数据
     wb = xlrd.open_workbook(membrane)
-    data = wb.sheet_by_name(r'双面膜色曲线 (第二批)')
-    # data = wb.sheet_by_name(r'Sheet1')
+    # data = wb.sheet_by_name(r'双面膜色曲线 (第二批)')
+    data = wb.sheet_by_name(r'Sheet1')
     rows = data.nrows
-    need_title = ['AREquipmentSortNo', '380', '780']
+    need_title = [r'炉序号', '380', '780']
     numberss_dict = dict()
     number33_lab_curve = dict()
     for count in range(10):
@@ -257,10 +258,10 @@ def lab_curve33(membrane, evt_dict, data_js, data_dir, thickness_lab_curve):
             title = data.row_values(count)
             num33_index, lab_index1, lab_index2 = title.index(need_title[0]), title.index(need_title[1]), title.index(
                 need_title[2])
-            a = count+1
+            a = count + 1
             break
         except:
-                continue
+            continue
     for i in range(a, rows):
         numberss_dict[data.cell(i, num33_index).value] = numberss_dict.get(data.cell(i, num33_index).value, 0) + 1
         # 我们取第四层的膜色曲线为基准
@@ -345,10 +346,10 @@ def get_evtpair_info(CC_dir, CX_dir, evt33, evt_pair, n_thickness):
         try:
             title = data.row_values(count)
             index1, index2 = title.index(info_title[0]), title.index(info_title[1])
-            a = count+1
+            a = count + 1
             break
         except:
-                continue
+            continue
     number33_evts = dict()
     rows = data.nrows
     for i in range(a, rows):
@@ -434,10 +435,10 @@ def refine_data(bad_thick_lab, process_data, refine_data_json, one_evt_thickness
         try:
             title = data.row_values(count)
             index1, index2, index3 = title.index(info_title[0]), title.index(info_title[1]), title.index(info_title[2])
-            a = count+1
+            a = count + 1
             break
         except:
-                continue
+            continue
     rows = data.nrows
     number_time = dict()
     time_number = dict()
@@ -517,10 +518,10 @@ def get_hc_value(process_data, num33_hc_js, face):
             index1, index2, index3, index4, index5 = title.index(info_title[0]), title.index(
                 info_title[1]), title.index(
                 info_title[2]), title.index(info_title[3]), title.index(info_title[4])
-            a = count+1
+            a = count + 1
             break
         except:
-                continue
+            continue
     rows = data.nrows
     number33_dsdzqdb = dict()
     for i in range(a, rows):
@@ -678,7 +679,7 @@ def all_usful_sensor_except_thickness(csv_dir, org_refine_thick_lab, oneone_evt_
         if feature38_sensor != '':
             # print(old_thick_hc_sensor, thick7, evt)
             new_thick_hc_sensor = old_thick_hc_sensor + feature38_sensor
-            new_thick_hc_sensor += evt   # key: feature135+evt_name
+            new_thick_hc_sensor += evt  # key: feature135+evt_name
             feature135_lab[new_thick_hc_sensor] = lab
 
     # 落盘

@@ -13,6 +13,7 @@ from data_load import DataLoader
 from data_post_process import data_post_process
 from mlp_torch import MLP
 from utils.my_mse_loss import my_mse_loss
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 import matplotlib.pyplot as plt
 from util import cnames
@@ -104,7 +105,7 @@ def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_j
                   thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js, full_135feature_js,
                   flag=0):  # flag=0,默认选最新最多的特征
 
-    concate_data(data_part1, feature135_lab_js, full_135feature_js)
+    # concate_data(data_part1, feature135_lab_js, full_135feature_js)
     # 可备选的,使用的json数据,分别有: 135, 33, 97 dims-feature
     X_list = [full_135feature_js, feature135_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js]
     tmp = X_list[flag]
@@ -135,7 +136,7 @@ def generate_data(file1, file2, evt_cc_dir, data_js, process_data, refine_data_j
         if float(Y[i][import_index]) > 4.5:
             # print(Y[i][import_index])
             bad_evt_name.append(X[i][-1])
-            f.write(X[i][-1]+',')
+            f.write(X[i][-1] + ',')
             count += 1
     # print(count)
     print('bad 750 rate_value: {}'.format(bad_evt_name))
@@ -335,7 +336,7 @@ if __name__ == "__main__":
     import_index = x.index(750)
 
     # 1train or 0modified_thickness
-    flag = 1
+    flag = 3
     # get_important_x()
 
     # 标准lab曲线
@@ -346,37 +347,41 @@ if __name__ == "__main__":
             3.58, 3.87, 3.97, 4.34, 4.57, 4.73, 5.03, 5.45, 5.94]
     _ = calculate_Lab(best)
     part_root_dir1 = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619'
-    root_dir = r'D:\work\project\卡尔蔡司AR镀膜\第二批7.1'
-    base_data_dir = os.path.join(root_dir, r'机台文件')
+    root_dir = r'D:\work\project\卡尔蔡司AR镀膜\第三批'
+    base_data_dir = os.path.join(root_dir, r'33机台文件')
+    sub_dir = r'0705'
+    js_save_path = os.path.join(root_dir, sub_dir)
+    if not os.path.exists(js_save_path):
+        os.mkdir(js_save_path)
     # evt_cc_dir = os.path.join(root_dir, r'机台文件\1.6&1.67_DVS_CC')
-    evt_cc_dir = os.path.join(root_dir, r'机台文件')
-    CC_dir = os.path.join(root_dir, r'机台文件')
-    CX_dir = os.path.join(root_dir, r'机台文件')
-    file1 = os.path.join(root_dir, r'匹配关系.xlsx')
-    file2 = os.path.join(root_dir, r'33#膜色数据.xlsx')
+    evt_cc_dir = os.path.join(root_dir, r'33机台文件')
+    CC_dir = os.path.join(root_dir, r'33机台文件')
+    CX_dir = os.path.join(root_dir, r'33机台文件')
+    file1 = os.path.join(root_dir, r'匹配关系2021.1~2021.6.xlsx')
+    file2 = os.path.join(root_dir, r'33# DVS双面膜色2021.1~2021.6.xlsx')
     # 此文档用于关联周期信息,筛选相同膜厚设置值所对应的lab曲线
-    process_data = os.path.join(root_dir, r'镀膜炉工艺记录.xlsx')
+    process_data = os.path.join(root_dir, r'镀膜炉工艺记录2021.1~2021.6.xlsx')
     # .json都是数据处理中需要落盘的信息
-    data_js = os.path.join(root_dir, r'0701', 'thickness_lab_curve.json')
-    refine_data_json = os.path.join(root_dir, r'0701', 'refine_thickness_lab_curve.json')
-    bad_js = os.path.join(root_dir, r'0701', 'bad_thick_lab.json')
-    oneone_evt_thickness = os.path.join(root_dir, r'0701', 'oneone_evt_thickness.json')
-    evt_33number = os.path.join(root_dir, r'0701', 'evt_33number.json')
+    data_js = os.path.join(root_dir, sub_dir, 'thickness_lab_curve.json')
+    refine_data_json = os.path.join(root_dir, sub_dir, 'refine_thickness_lab_curve.json')
+    bad_js = os.path.join(root_dir, sub_dir, 'bad_thick_lab.json')
+    oneone_evt_thickness = os.path.join(root_dir, sub_dir, 'oneone_evt_thickness.json')
+    evt_33number = os.path.join(root_dir, sub_dir, 'evt_33number.json')
     # 加入3维耗材信息
-    num33_hc_js = os.path.join(root_dir, r'0701', '33_hc.json')
-    number33_thick_js = os.path.join(root_dir, r'0701', '33number_thickness.json')
-    thick_hc_lab_js = os.path.join(root_dir, r'0701', r'thick_hc_lab.json')
+    num33_hc_js = os.path.join(root_dir, sub_dir, '33_hc.json')
+    number33_thick_js = os.path.join(root_dir, sub_dir, '33number_thickness.json')
+    thick_hc_lab_js = os.path.join(root_dir, sub_dir, r'thick_hc_lab.json')
     # 加入16维sensor列时序特征
-    thick14_hc3_sensor16_lab_js = os.path.join(root_dir, r'0701', 'thick14hc3sensor16_lab.json')
+    thick14_hc3_sensor16_lab_js = os.path.join(root_dir, sub_dir, 'thick14hc3sensor16_lab.json')
     # 加入64维 8step sensor时序特征
-    csv_dict_js = os.path.join(root_dir, r'0701', 'evtname_sensor_name_value.json')
-    thick14_hc3_sensor64_lab_js = os.path.join(root_dir, r'0701', 'thick14hc3sensor64_lab.json')
+    csv_dict_js = os.path.join(root_dir, sub_dir, 'evtname_sensor_name_value.json')
+    thick14_hc3_sensor64_lab_js = os.path.join(root_dir, sub_dir, 'thick14hc3sensor64_lab.json')
     # 再加入19列有意义数据的38维特征
-    feature135_lab_js = os.path.join(root_dir, r'0701', 'feature135_lab.json')
+    feature135_lab_js = os.path.join(root_dir, sub_dir, 'feature135_lab.json')
 
     # merge two_part_data_json
     data_part1 = os.path.join(part_root_dir1, 'feature135_lab.json')
-    full_135feature_js = os.path.join(root_dir, r'0701', 'all.json')
+    full_135feature_js = os.path.join(root_dir, sub_dir, 'all.json')
 
     if flag == 3:
         data_class = data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json,
