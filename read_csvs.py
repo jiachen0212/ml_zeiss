@@ -81,13 +81,18 @@ def get_time_sensor(evt_dict, running_times, sensor_values, evtname):
     assert lens == 9
     for i in range(lens - 1):
         start, end = evt_process_time[i], evt_process_time[i + 1]
-        sensor_start = running_times.index(start)
+        try:
+            sensor_start = running_times.index(start)
+        except:
+            return time_sensor  # start都找不到,数据记录肯定有问题,这个样本数据就不要了.
         try:
             sensor_end = running_times.index(end)
         except:
-            # 最后evt中的时间点,sensor.csv中可能找不到,数据就直接读取到sensor.csv的最后一行
-            sensor_end = len(running_times)
-
+            if i == lens-2:
+                # 最后evt中的时间点,sensor.csv中可能找不到,数据就直接读取到sensor.csv的最后一行
+                sensor_end = len(running_times)
+            else:
+                return time_sensor
         # check time
         # print(dir_name, start, end)
         # print(running_times[sensor_start-1], running_times[sensor_start], \
@@ -154,9 +159,10 @@ def get_info_0630(path):
 
             # step3.
             # process_name 和 sensor_value联系起来
-            process_sensor_dict = process_sensor(evt_dict, time_sensor)
-            all_process_sensor[evtname] = process_sensor_dict
-            all_sensor_index_dict[evtname] = sensor_names
+            if time_sensor:
+                process_sensor_dict = process_sensor(evt_dict, time_sensor)
+                all_process_sensor[evtname] = process_sensor_dict
+                all_sensor_index_dict[evtname] = sensor_names
         else:
             continue
 
