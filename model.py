@@ -62,7 +62,7 @@ def show_y_pred(y, gt_y=None, epo=None, best=None, flag='eval'):
     for i in range(sample_num):
         single_y = y[i, :]
         single_gt_y = gt_y[i, :]
-        if single_gt_y[24] > 2:
+        if single_gt_y[24] > 2 or single_gt_y[74] > 4.5:
             if i == 0:
                 plt.plot(x, single_gt_y, color='pink', label='gt_bad')
                 plt.plot(x, single_y, color='black', label='mlp_bad')
@@ -70,19 +70,14 @@ def show_y_pred(y, gt_y=None, epo=None, best=None, flag='eval'):
                 plt.plot(x, single_gt_y, color='pink')
                 plt.plot(x, single_y, color='black')
             # plt.legend()
-        else:
-            if i == 0:
-                plt.plot(x, single_gt_y, color='cornflowerblue', label='origin')
-                plt.plot(x, single_y, color='moccasin', label='mlp regression')
-            else:
-                plt.plot(x, single_gt_y, color='cornflowerblue')
-                plt.plot(x, single_y, color='moccasin')
-        # if i == 0:
-        #     plt.plot(x, single_gt_y, color='cornflowerblue', label='origin')
-        #     plt.plot(x, single_y, color='moccasin', label='mlp regression')
-        # else:
-        #     plt.plot(x, single_gt_y, color='cornflowerblue')
-        #     plt.plot(x, single_y, color='moccasin')
+        # if single_gt_y[24] < 2 and single_gt_y[74] < 4.5:
+        #     if i == 0:
+        #         plt.plot(x, single_gt_y, color='cornflowerblue', label='origin')
+        #         plt.plot(x, single_y, color='moccasin', label='mlp regression')
+        #     else:
+        #         plt.plot(x, single_gt_y, color='cornflowerblue')
+        #         plt.plot(x, single_y, color='moccasin')
+        #     plt.legend()
     if best:
         plt.plot(x, best, color='red', label='target')
     plt.legend()
@@ -105,7 +100,7 @@ def generate_data(data_part1, file1, file2, evt_cc_dir, data_js, process_data, r
                   thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js, full_135feature_js,
                   flag=0):  # flag=0,默认选最新最多的特征
 
-    # concate_data(data_part1, feature135_lab_js, full_135feature_js)
+    concate_data(data_part1, feature135_lab_js, full_135feature_js)
     # 可备选的,使用的json数据,分别有: 135, 33, 97 dims-feature
     X_list = [full_135feature_js, feature135_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js]
     tmp = X_list[flag]
@@ -145,7 +140,8 @@ def generate_data(data_part1, file1, file2, evt_cc_dir, data_js, process_data, r
     # X = [[i[0],i[1],i[2]*1.5,i[3]*1.5,i[4]*2,i[5]*2,i[6]] for i in X]
     # added 0703
     # 对除14层膜厚之外的121维特征进行筛选
-    X = Select_feature(X, Y)
+    k = 10
+    X = Select_feature(X, Y, k=k)
     Y = np.array(Y)
     # X = np.array(X)
     # print(X.shape, Y.shape)
@@ -329,6 +325,35 @@ def concate_data(a, b, c):
         js_file.write(data)
 
 
+
+def show_all_y(Y, best):
+    n, m = Y.shape[:2]
+    plt.title('all Y')
+    plt.xlabel("Wave-length")
+    plt.ylabel("Reflectance")
+    x = [380 + 5 * i for i in range(m)]
+    count = 0
+    for i in range(n):
+        single_y = Y[i, :]
+        if i == 0:
+            if single_y[74] > 4.5:
+                plt.plot(x, single_y, color='black', label='origin_bad_y')
+                count += 1
+            else:
+                plt.plot(x, single_y, color='cornflowerblue', label='origin_y')
+            plt.plot(x, best, color='red', label='best')
+        else:
+            if single_y[74] > 4.5:
+                plt.plot(x, single_y, color='black')
+                count += 1
+            else:
+                plt.plot(x, single_y, color='cornflowerblue', )
+    print(count)
+    plt.legend()
+    plt.show()
+
+
+
 if __name__ == "__main__":
 
     x = [380 + i * 5 for i in range(81)]
@@ -396,6 +421,7 @@ if __name__ == "__main__":
                          thick_hc_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js,
                          full_135feature_js)
 
+    show_all_y(Y, best)
     # X[np.isnan(X)] = 0.0
     batch_size = X.shape[0]
     input_dim = X.shape[-1]
@@ -408,7 +434,7 @@ if __name__ == "__main__":
     scale = StandardScaler(with_mean=True, with_std=True)
     # 注意后面观察膜厚的变化,需要用到它的逆操作: X = scale.inverse_transform(X)
     X_ = scale.fit_transform(X)
-    train_x, test_x, train_y, test_y = train_test_split(X_, Y, test_size=0.25, random_state=3)
+    train_x, test_x, train_y, test_y = train_test_split(X_, Y, test_size=0.32, random_state=4)
     print("train size: {}".format(train_x.shape[0]))
     print("validation size: {}".format(test_x.shape[0]))
     train_dataloader = DataLoader((train_x, train_y), batch_size=batch_size, batch_first=False, device=device)
