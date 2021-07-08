@@ -225,7 +225,7 @@ def top_k_feature(remed, Y, X, all, n):
         all.append(a.index(i))
 
 
-def Select_feature(X, Y, k=10):
+def Select_feature(X, Y):
     '''
 
     :param X: numpy
@@ -234,7 +234,6 @@ def Select_feature(X, Y, k=10):
     '''
     import_index = [0, 5, 12, 52, 74, 80]
     # 对14层膜厚之后的121维特征做重要性筛选
-    thickness14 = np.array([a[:14] for a in X])
     X = [a[14:] for a in X]
     X = np.array(X)
     X[np.isnan(X)] = 0.0
@@ -246,10 +245,11 @@ def Select_feature(X, Y, k=10):
     all = []
     for i in import_index:
         # 每个频段选top20
-        top_k_feature(i, Y, X, all, n=k)
+        top_k_feature(i, Y, X, all, n=20)
     slim_feature = list(set(all))
     print("特征筛选后的特征维度: {}".format(len(slim_feature)))
-    X_slim = thickness14
+    # X_slim = None
+    X_slim = X[:, :14]  # n,14
     for ind in slim_feature:
         if X_slim is not None:
             tmp = np.reshape(X[:, ind], (-1, 1))
@@ -257,5 +257,3 @@ def Select_feature(X, Y, k=10):
         else:
             X_slim = X[:, ind]
     return X_slim
-
-
