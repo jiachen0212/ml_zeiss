@@ -1,7 +1,7 @@
 # coding=utf-8
 import json
 import os
-
+import random
 import numpy as np
 import torch
 import torch.optim as optimizers
@@ -13,27 +13,25 @@ from data_load import DataLoader
 from data_post_process import data_post_process
 from mlp_torch import MLP
 from utils.my_mse_loss import my_mse_loss
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# 衡量lab曲线与标准曲线的误差/相似度
+from util import weighted_mse
 import matplotlib.pyplot as plt
 from util import cnames
 from util import calculate_Lab
 from util import Select_feature
 from torch.autograd import Variable
-
-colors = list(cnames.keys())
 from sklearn.neural_network import MLPRegressor
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+colors = list(cnames.keys())
 
 
 def get_important_x():
     weights = [1 for i in range(81)]
     nms = [380 + i * 5 for i in range(81)]
-    a = [380, 400, 405, 410, 435, 440, 445, 635, 640, 645, 780]
+    a = [380, 450, 680, 685, 690, 695, 700, 780]
     for n in a:
         weights[nms.index(n)] = 2
-    # print(weights)
     return weights
-
 
 def mlp_fun(test_x, test_y, train_x, train_y):
     # mlp regression
@@ -42,7 +40,7 @@ def mlp_fun(test_x, test_y, train_x, train_y):
                         solver='adam',
                         alpha=0.0001,  # L2惩罚参数
                         max_iter=1,
-                        random_state=123, )
+                        random_state=123,)
     mlpr.fit(train_x, train_y)
     pre_y = mlpr.predict(test_x)
     print("mean absolute error:", metrics.mean_absolute_error(test_y, pre_y))
@@ -80,7 +78,7 @@ def show_y_pred(y, gt_y=None, epo=None, best=None, flag='eval'):
         #     plt.legend()
     if best:
         plt.plot(x, best, color='red', label='target')
-    plt.legend()
+    # plt.legend()
     plt.savefig("lab_curve.png")
     plt.show()
 
@@ -95,34 +93,36 @@ def plot_loss(loss):
     plt.show()
 
 
-def generate_data(data_part1, file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                  evt_33number, base_data_dir, CC_dir, CX_dir, bad_js, num33_hc_js, number33_thick_js, data_json,
-                  thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js, full_135feature_js,
-                  flag=0):  # flag=0,默认选最新最多的特征
+def generate_data(data_part1, file1, file2, process_data, base_data_dir, CC_dir, CX_dir, thick14_hc3_sensor16_lab_js,
+                  thick14_hc3_sensor80_lab_js, feature135_lab_js, full_135feature_js, flag=1):  # flag=0,默认选最新最多的特征
 
-    concate_data(data_part1, feature135_lab_js, full_135feature_js)
+    # concate_data(data_part1, feature135_lab_js, full_135feature_js)
+
     # 可备选的,使用的json数据,分别有: 135, 33, 97 dims-feature
-    X_list = [full_135feature_js, feature135_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js]
+    X_list = [full_135feature_js, feature135_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js]
     tmp = X_list[flag]
     if not os.path.exists(tmp):
-        data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                          evt_33number, base_data_dir, CC_dir, CX_dir, bad_js, num33_hc_js, number33_thick_js,
-                          data_json,
-                          thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js).run()
+        data_post_process(file1, file2, process_data, base_data_dir, CC_dir, CX_dir,
+                          thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, feature135_lab_js).run()
         print("data process done!")
     else:
         print("data has already processed! start mlp！！!")
-
     with open(tmp, encoding="utf-8") as reader:
         thicknesshc_curve = json.load(reader)
-
     Y = []
+    X = []
     for thicknesshc, lab_curve in thicknesshc_curve.items():
         Y.append(lab_curve)
+        X.append(thicknesshc)
     Y = [[float(i) for i in a] for a in Y]
-    X = list(thicknesshc_curve.keys())
-    # X = [i[:-1] for i in X]
     X = [i.split(',') for i in X]
+    X = [i[:-1] for i in X]
+
+    # for i in range(len(X)):
+    #     if len(X[i]) != 18:
+    #         Y.pop(i)
+    # X = [i for i in X if len(i) == 18]
+
     print("all dara_lens: {}".format(len(X)))
     # check 750 反射率
     f = open(r'./bad_750.txt', 'w')
@@ -134,24 +134,31 @@ def generate_data(data_part1, file1, file2, evt_cc_dir, data_js, process_data, r
             f.write(X[i][-1] + ',')
             count += 1
     print('bad 750 rate_value: {}'.format(len(bad_evt_name)))
-    X = [i[:-1] for i in X]  # 把evt_name从x的最后一位剔除
+
     X = [[float(i) for i in a] for a in X]
     # 手动调整某基层膜厚的值,看看曲线在哪些频段会产生很大变化否?
-    # X = [[i[0],i[1],i[2]*1.5,i[3]*1.5,i[4]*2,i[5]*2,i[6]] for i in X]
-    # added 0703
-    # 对除14层膜厚之外的121维特征进行筛选
+    # for i in range(len(X)):
+    #     for j in range(len(X[i])):
+    #         X[i][j] += random.uniform(-5, 5)
+
+    # 0709 仅17层特征输入
+    # X = [a[:17] for a in X]
+
+    # # added 0703
+    # # 对除14层膜厚之外的121维特征进行筛选
     k = 10
     X = Select_feature(X, Y, k=k)
-    Y = np.array(Y)
-    # X = np.array(X)
-    # print(X.shape, Y.shape)
-    return X, Y
 
+    Y = np.array(Y)
+    X = np.array(X)
+    print("data_size: {}".format(X.shape[0]))
+    return X, Y
 
 def compare_res(best):
     best_ = np.array(best)
     y1 = np.load(r'./train.npy')
-    y2 = np.load(r'./fine_tune.npy')
+    y2 = np.load(r'./modified_x.npy')
+    print(y1.shape, y2.shape)
     mse1 = []
     mse2 = []
     sample_num, dims = y1.shape
@@ -167,8 +174,8 @@ def compare_res(best):
         plt.plot(x, a, color='cornflowerblue')
         plt.plot(x, b, color='hotpink')
         if i == 0:
-            plt.plot(x, a, color='cornflowerblue', label='mlp')
-            plt.plot(x, b, color='lightpink', label='modified-thickness')
+            plt.plot(x, a, color='cornflowerblue', label='base')
+            plt.plot(x, b, color='lightpink', label='modified')
         else:
             plt.plot(x, a, color='cornflowerblue')
             plt.plot(x, b, color='lightpink')
@@ -177,7 +184,9 @@ def compare_res(best):
     plt.savefig("compare_lab_curve.png")
     plt.show()
     print("base mse: {}, fine_tune mse: {}".format(np.mean(mse1), np.mean(mse2)))
-    print(np.mean(mse1) > np.mean(mse2))
+    # print(np.mean(mse1) > np.mean(mse2))
+
+
 
 
 def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, epochs, best, is_train=True,
@@ -188,8 +197,6 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_datalo
             train_loss = 0
             # print('-' * 10, 'epoch: {}'.format(epoch + 1), '-' * 10)
             for ii, (data, label) in enumerate(train_dataloader):
-                # print(data[0])
-                # print(label[0])
                 # print(data.shape, 'train')
                 input = Variable(data, requires_grad=False)
                 target = Variable(label)
@@ -238,22 +245,32 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_datalo
         for epoch in range(epochs):
             train_loss = 0
             for ii, (data, label) in enumerate(train_dataloader):
+                if epoch == 0:
+                    print("begin X: {}".format(scale.inverse_transform(data.detach().numpy())[0][:20]))
+                    np.save(r'./1.npy', data.detach().numpy())
                 # 用标准曲线作为target,逼近膜厚去拟合最佳曲线
                 target = best * data.shape[0]
                 target = np.array(target)
                 target = np.reshape(target, (data.shape[0], -1))
                 target = Variable(torch.from_numpy(target).float())
                 # target = label
+
+                # 只修改14层膜厚值
+                # data_np = data.numpy()
+                # data = np.array([i[:14] for i in data_np])
+                # data = torch.from_numpy(data)
+
                 data = Variable(data, requires_grad=True)
-                # optimizer = torch.optim.SGD({data},
-                #                             weight_decay=5e-3, lr=1e-7, momentum=0.5)
-                optimizer = optimizers.Adam(model.parameters(),
-                                            lr=1e-8,
+                optimizer = optimizers.Adam({data},
+                                            # lr=1e-3,    # 仅膜厚耗材合适的lr
+                                            lr=1e-4,    # 37维特征合适的lr  1e-4  epoch=2808/3000
+                                            # lr=5e-3,      # all: 17+37维
                                             betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)
                 optimizer.zero_grad()
                 score = model(data)
                 loss = compute_loss(score, target)
                 loss.backward()
+                # print(data.grad[0])
                 optimizer.step()
                 train_loss += loss.item()
                 if epoch == epochs - 1:
@@ -261,12 +278,14 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_datalo
                     preds = model(data)
                     y_pred = preds.detach().numpy()
                     np.save(r'./fine_tune.npy', y_pred)
+                    # print("finally X: {}".format(data[0][:14]))
+                    np.save(r'./2.npy', data.detach().numpy())
                     X = scale.inverse_transform(data.detach().numpy())
-                    # print(X)
-                    np.save(r'./modified_x.npy', X)
+                    print("finally X: {}".format(X[0][:20]))
+                    np.save(r'./modified_x.npy', y_pred)
             train_loss /= len(train_dataloader)
             loss_list.append(train_loss)
-            print('-' * 10, 'loss: {}'.format(train_loss), '-' * 10)
+            # print('-' * 10, 'loss: {}'.format(train_loss), '-' * 10)
         plot_loss(loss_list)
         print(loss_list.index(min(loss_list)))  # 返回fine-tune阶段min_loss出现的epoch
         print(max(loss_list), min(loss_list))
@@ -320,6 +339,7 @@ def concate_data(a, b, c):
         all_js[k] = v
     for k, v in js2.items():
         all_js[k] = v
+    print(len(all_js))
     data = json.dumps(all_js)
     with open(c, 'w') as js_file:
         js_file.write(data)
@@ -348,7 +368,7 @@ def show_all_y(Y, best):
                 count += 1
             else:
                 plt.plot(x, single_y, color='cornflowerblue', )
-    print(count)
+    # print(count)
     plt.legend()
     plt.show()
 
@@ -378,9 +398,9 @@ if __name__ == "__main__":
     if not os.path.exists(js_save_path):
         os.mkdir(js_save_path)
     # evt_cc_dir = os.path.join(root_dir, r'机台文件\1.6&1.67_DVS_CC')
-    evt_cc_dir = os.path.join(root_dir, r'33机台文件')
-    CC_dir = os.path.join(root_dir, r'33机台文件')
-    CX_dir = os.path.join(root_dir, r'33机台文件')
+    evt_cc_dir = os.path.join(root_dir, r'cc')
+    CC_dir = os.path.join(root_dir, r'cc')
+    CX_dir = os.path.join(root_dir, r'cx')
     file1 = os.path.join(root_dir, r'匹配关系2021.1~2021.6.xlsx')
     file2 = os.path.join(root_dir, r'33# DVS双面膜色2021.1~2021.6.xlsx')
     # 此文档用于关联周期信息,筛选相同膜厚设置值所对应的lab曲线
@@ -399,7 +419,7 @@ if __name__ == "__main__":
     thick14_hc3_sensor16_lab_js = os.path.join(root_dir, sub_dir, 'thick14hc3sensor16_lab.json')
     # 加入64维 8step sensor时序特征
     csv_dict_js = os.path.join(root_dir, sub_dir, 'evtname_sensor_name_value.json')
-    thick14_hc3_sensor64_lab_js = os.path.join(root_dir, sub_dir, 'thick14hc3sensor64_lab.json')
+    thick14_hc3_sensor80_lab_js = os.path.join(root_dir, sub_dir, 'thick14hc3sensor64_lab.json')
     # 再加入19列有意义数据的38维特征
     feature135_lab_js = os.path.join(root_dir, sub_dir, 'feature135_lab.json')
 
@@ -408,28 +428,23 @@ if __name__ == "__main__":
     full_135feature_js = os.path.join(root_dir, sub_dir, 'all.json')
 
     if flag == 3:
-        data_class = data_post_process(file1, file2, evt_cc_dir, data_js, process_data, refine_data_json,
-                                       oneone_evt_thickness,
-                                       evt_33number, base_data_dir, CC_dir, CX_dir, num33_hc_js, bad_js,
-                                       number33_thick_js, thick_hc_lab_js,
-                                       thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js)
+        data_class = data_post_process(file1, file2, process_data, base_data_dir, CC_dir, CX_dir,
+                                       thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, feature135_lab_js)
         # data_class.clean_data_machineid()
         # data_class.clean_data_nthickness()
 
-    X, Y = generate_data(data_part1, file1, file2, evt_cc_dir, data_js, process_data, refine_data_json, oneone_evt_thickness,
-                         evt_33number, base_data_dir, CC_dir, CX_dir, bad_js, num33_hc_js, number33_thick_js,
-                         thick_hc_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor64_lab_js, feature135_lab_js,
-                         full_135feature_js)
+    X, Y = generate_data(data_part1, file1, file2, process_data, base_data_dir, CC_dir, CX_dir,
+                                       thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, feature135_lab_js, full_135feature_js)
 
     show_all_y(Y, best)
     # X[np.isnan(X)] = 0.0
-    batch_size = X.shape[0]
+    batch_size = X.shape[0]   # 64
     input_dim = X.shape[-1]
     output_dim = Y.shape[-1]
     hiden_dim = 50
     epochs_train = 3000
     # 调整膜厚值
-    epochs_finetune = 1000
+    epochs_finetune = 2808
     # 数据规整化
     scale = StandardScaler(with_mean=True, with_std=True)
     # 注意后面观察膜厚的变化,需要用到它的逆操作: X = scale.inverse_transform(X)
@@ -453,41 +468,13 @@ if __name__ == "__main__":
         compare_res(best)
         # 怎么剔除异常点? 怎么使得每一个样本都刚好的逼近标准曲线？[膜厚设置值-实测>2*rate,考虑剔除]
         # data_info(X, Y)
+    elif flag == 2:
+        # compare_res(best)
+        # a = r'D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\0619\thick_hc_lab.json'
+        # b = r'D:\work\project\卡尔蔡司AR镀膜\第二批7.1\0701\thick_hc_lab.json'
+        # c = r'./tmp.json'
+        a = r'./tmp.json'
+        b = r'D:\work\project\卡尔蔡司AR镀膜\第三批\0705\thick_hc_lab.json'
+        c = r'./all_thick14_hc3.json'
+        concate_data(a, b, c)
 
-'''
-lab曲线相识度度量:
-a = [11.27, 7.28, 5.08, 3.53, 2.08, 1.12, 0.77, 0.73, 0.64, 0.74, 1.18, 1.4, 1.6, 1.65, 1.73, 1.92, 2.02, 1.99, 1.84,
-     1.68, 1.61, 1.64, 1.65, 1.54, 1.3, 1.09, 0.96, 0.97, 0.98, 0.94, 0.86, 0.72, 0.59, 0.57, 0.51, 0.49, 0.49, 0.54,
-     0.51, 0.45, 0.37, 0.3, 0.27, 0.23, 0.2, 0.3, 0.26, 0.24, 0.22, 0.14, 0.17, 0.2, 0.23, 0.36, 0.31, 0.35, 0.39, 0.52,
-     0.52, 0.52, 0.56, 0.67, 0.78, 0.87, 1.06, 1.25, 1.5, 1.65, 1.85, 2.1, 2.29, 2.49, 2.7, 2.92, 3.14, 3.33, 3.62,
-     3.75, 4.1, 4.31, 4.67]
-
-best = [5.52, 3.53, 1.97, 1.28, 0.74, 0.7, 0.85, 1.05, 1.23, 1.43, 1.63, 1.82, 1.84, 1.8, 1.75, 1.73, 1.64, 1.49,
-        1.39, 1.31, 1.23, 1.16, 1.03, 0.91, 0.85, 0.86, 0.84, 0.77, 0.71, 0.64, 0.61, 0.61, 0.58, 0.56, 0.53, 0.46,
-        0.46, 0.44, 0.41, 0.43, 0.4, 0.39, 0.36, 0.25, 0.19, 0.17, 0.21, 0.19, 0.17, 0.17, 0.2, 0.2, 0.16, 0.20,
-        0.26, 0.35, 0.41, 0.57, 0.64, 0.71, 0.9, 1.04, 1.17, 1.27, 1.43, 1.56, 1.82, 2.07, 2.4, 2.72, 3.02, 3.33,
-        3.58, 3.87, 3.97, 4.34, 4.57, 4.73, 5.03, 5.45, 5.94]
-import numpy as np
-import matplotlib.pyplot as plt
-
-a_ = np.array(a)
-b_ = np.array(best)
-print(np.corrcoef([a_, b_]))
-#
-weights = [1 for i in range(81)]
-nms = [380 + i * 5 for i in range(81)]
-t = [380, 400, 405, 410, 435, 440, 445, 635, 640, 645, 780]
-for n in t:
-    weights[nms.index(n)] = 2
-
-res = [(a[i]-best[i])**2*weights[i] for i in range(81)]
-print(np.mean(res))
-plt.xlabel("Wave-length")
-plt.ylabel("Reflectance")
-
-plt.plot(nms, best, color='pink', label='best curve')
-plt.plot(nms, a, color='black', label='sample_curve')
-plt.legend()
-plt.show()
-
-'''

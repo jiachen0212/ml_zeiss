@@ -1,7 +1,7 @@
 # coding=utf-8
 import json
 import os
-
+import copy
 import numpy as np
 
 
@@ -129,16 +129,15 @@ def process_sensor(evt_dict, time_sensor):
     return process_sensor_dict
 
 
-def get_info_0630(path):
+def get_info_0630(path, exists_sensors):
     '''
     :param path: dir path
     :return: all_dir's process_sensor_value_dict. a list
 
     '''
-    files = os.listdir(path)
-    evtfiles = [i for i in files if ("evt" or "EVT") in i]
     all_process_sensor = dict()
     all_sensor_index_dict = dict()
+    evtfiles = ['evt'+i for i in exists_sensors]
     for evtname in evtfiles:
         sensor_csv = os.path.join(path, evtname[3:])
         process_csv = os.path.join(path, evtname)
@@ -165,26 +164,20 @@ def get_info_0630(path):
                 all_sensor_index_dict[evtname] = sensor_names
         else:
             continue
-
+    print("all_process_sensor len: {}, all_sensor_index_dict len: {}".format(len(all_process_sensor), len(all_sensor_index_dict)))
     return all_process_sensor, all_sensor_index_dict
 
 
-def process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js, oneone_evt_thick_js):
+def process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js, sen_list, exists_sensors):
     '''
     :param all_process_sensor: dir_name: each_dict
     each_dict: process_name: sensor_value_list
     sensor_index_dict: index, sensor_name
-    :param oneone_evt_thick_js: 用于精简csv_dict_js, 剔除匹配不到lab值的evt_file
     :return:
 
     '''
-    oneone_evt_lab = json.load(open(oneone_evt_thick_js, 'r'))
-    evts = list(oneone_evt_lab.keys())
-    evts = [i + '.csv' for i in evts]
     csv_dict = dict()
-    # 蔡司提供的,重要sensor数据列
-    f = open(r'./info_sensor.txt', 'r')
-    sen_list = (f.readlines()[0]).split(',')[:-1]
+    evts = ['evt'+i for i in exists_sensors]
     for dir_name, process_sensor in all_process_sensor.items():
         if dir_name in evts:
             sensor_name_list = all_sensor_name[dir_name]
@@ -196,18 +189,23 @@ def process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js, 
                         # 获取每一sensor参数的,所有列数据值. each_sensor_name: [value]
                         tmp_dict[each_sensor] = [row[index] for row in sensor_value_list]
                 dict_[process_name] = tmp_dict
-            csv_dict[dir_name] = dict_
-            assert len(dict_) == 8
+            # pre code
+            # csv_dict[dir_name] = dict_
+            # assert len(dict_) == 8
+
+            # 0711
+            if len(dict_) == 8:
+                csv_dict[dir_name] = dict_
+    print("evt_8steps sensor len: {}".format(len(csv_dict)))
+
     # {dir_name: {process_name: {each_sensor: [value_list]}}}
-    # 落盘
     js = json.dumps(csv_dict)
     with open(csv_dict_js, 'w') as js_:
         js_.write(js)
-    return csv_dict
+
 
 
 def times_feature(data):
-    print('8 steps, only get mean and std, no zqx-feature!')
     f_sensor = []
     # ts = pd.Series(data)
     # ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
@@ -220,62 +218,77 @@ def times_feature(data):
     return f_sensor
 
 
-def evt_64sensor(csv_dict_js, sub_sen_list):
-    print('get 8steps features ~')
-    evt_64sensor = dict()
+def num33_64sensor(csv_dict_js, sub_sen_list, num_evt12_data):
+    numb33_64sensor = dict()
     evt_sen_name_value = json.load(open(csv_dict_js, 'r'))
-    for evtname, v in evt_sen_name_value.items():
-        evt_8steps_sensor_feature = []  # len=64  8*4*2
-        for process, sensor_dict in v.items():
-            for sen_n, sen_v in sensor_dict.items():
-                if sen_n in sub_sen_list:
-                    each_step_sensor_feature = times_feature([float(i) for i in sen_v])  # len=4
-                    evt_8steps_sensor_feature.extend(each_step_sensor_feature)
-        evt_64sensor[evtname] = ''.join(str(i) + ',' for i in evt_8steps_sensor_feature)
+    for numb33, evtcccx in num_evt12_data.items():
+        # evtxxxx.csv
+        evtcc = evtcccx[0]
+        evtcx = evtcccx[1]
+        evt_8steps_sensor_feature1 = []
+        evt_8steps_sensor_feature2 = []
+        if evtcc in evt_sen_name_value and evtcx in evt_sen_name_value:
+            for process, sensor_dict in evt_sen_name_value[evtcc].items():
+                for sen_n, sen_v in sensor_dict.items():
+                    if sen_n in sub_sen_list:
+                        each_step_sensor_feature = times_feature([float(i) for i in sen_v])
+                        evt_8steps_sensor_feature1.extend(each_step_sensor_feature)
+            for process, sensor_dict in evt_sen_name_value[evtcx].items():
+                for sen_n, sen_v in sensor_dict.items():
+                    if sen_n in sub_sen_list:
+                        each_step_sensor_feature = times_feature([float(i) for i in sen_v])
+                        evt_8steps_sensor_feature2.extend(each_step_sensor_feature)
+            evt_8steps_sensor_feature = [(evt_8steps_sensor_feature1[i] + evt_8steps_sensor_feature2[i])/2 for i in range(len(evt_8steps_sensor_feature1))]
+        # 仅存在正面不存在背面sensor_csv
+        elif not evtcc in evt_sen_name_value and evtcx in evt_sen_name_value:
+            for process, sensor_dict in evt_sen_name_value[evtcx].items():
+                for sen_n, sen_v in sensor_dict.items():
+                    if sen_n in sub_sen_list:
+                        each_step_sensor_feature = times_feature([float(i) for i in sen_v])
+                        evt_8steps_sensor_feature2.extend(each_step_sensor_feature)
+            evt_8steps_sensor_feature = evt_8steps_sensor_feature2
+        # 仅存在背面不存在正面sensor_csv
+        elif evtcc in evt_sen_name_value and not evtcx in evt_sen_name_value:
+            for process, sensor_dict in evt_sen_name_value[evtcc].items():
+                for sen_n, sen_v in sensor_dict.items():
+                    if sen_n in sub_sen_list:
+                        each_step_sensor_feature = times_feature([float(i) for i in sen_v])
+                        evt_8steps_sensor_feature1.extend(each_step_sensor_feature)
+            evt_8steps_sensor_feature = evt_8steps_sensor_feature1
+        else:
+            continue
+        assert len(evt_8steps_sensor_feature) == 64
+        numb33_64sensor[numb33] = ''.join(str(i) + ',' for i in evt_8steps_sensor_feature)
 
-    return evt_64sensor
+    return numb33_64sensor
 
 
-def get8step_sensor_feature(base_path, csv_dict_js, thick14_hc3_sensor80_lab_js, thick14_hc3_sensor16_lab_js,
-                            oneone_evt_thick_js, thick7_lab_js, sub_sen_list):
+def get8step_sensor_feature(num_evt12, base_data_dir, csv_dict_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, sen_list):
     '''
-    关联 evt和 sensor_value,获取工艺的8个steo起始时间,并对应计算各个阶段内,thickness,rate的时序特征. 8*4*2 = 64维
+    关联 evt和 sensor_value,获取工艺的8个step起始时间,并对应计算各个阶段内,thickness,rate的时序特征. 8*4*2 = 64维
 
     '''
-    print("add 8*4*2 part snesor feature!!! mean and std ~")
-    all_process_sensor, all_sensor_name = get_info_0630(base_path)
-    _ = process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js, oneone_evt_thick_js)
+    print("add 8*4*2  8steps sensor feature, mean and std ~")
+    num_evt12_data = json.load(open(num_evt12, 'r'))
+    exists_sensor = open(r'./sensor_csv.txt', 'r').readlines()[0]
+    exists_sensors = exists_sensor.split(',')[:-1]
+    number33_thick14hc3sensor16_lab = json.load(open(thick14_hc3_sensor16_lab_js, 'r'))
+    thick14hc3sensor80_lab = copy.deepcopy(number33_thick14hc3sensor16_lab)
+    all_process_sensor, all_sensor_name = get_info_0630(base_data_dir, exists_sensors)
+    process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js, sen_list, exists_sensors)
+    numb33_64sensor_dict = num33_64sensor(csv_dict_js, sen_list, num_evt12_data)
 
-    evt_64sensor_dict = evt_64sensor(csv_dict_js, sub_sen_list)
-    evt_7thick = json.load(open(oneone_evt_thick_js, 'r'))
-    thick14_lab = json.load(open(thick7_lab_js, 'r'))
-    thick7_lab = dict()
-    for k, v in thick14_lab.items():
-        tmp = k.split(',')[:7]
-        thick7_lab[''.join(i + ',' for i in tmp)] = v
-        # print(tmp, v, 'thick7_lab')
-    thick14hc3sensor16sensor64_lab = dict()
-    # key value 转换
-    thick_hc_sen16_lab = json.load(open(thick14_hc3_sensor16_lab_js, 'r'))
-    lab_thick_hc_sen16_lab = dict()
-    for k, v in thick_hc_sen16_lab.items():
-        print(len(k.split(',')))
-        lab_thick_hc_sen16_lab[''.join(str(i) for i in v[1])] = k  # lab：膜厚耗材sensor16
-    for evt, thick7 in evt_7thick.items():
+    for num, thickhcsensor in number33_thick14hc3sensor16_lab.items():
         try:
-            lab = thick7_lab[thick7]
-            old_thick_hc_sensor = lab_thick_hc_sen16_lab[''.join(str(i) for i in lab)]  # 14+3+16维
-            new_thick_hc_sensor = old_thick_hc_sensor + evt_64sensor_dict[evt + '.csv']
+            sensor64 = numb33_64sensor_dict[num]
         except:
             continue
-        thick14hc3sensor16sensor64_lab[new_thick_hc_sensor] = lab
-
-    # 落盘
-    js = json.dumps(thick14hc3sensor16sensor64_lab)
+        thick14hc3sensor80_lab[num][0] = number33_thick14hc3sensor16_lab[num][0] + sensor64
+    assert len(thick14hc3sensor80_lab[num][0].split(',')) == 98
+    js = json.dumps(thick14hc3sensor80_lab)
     with open(thick14_hc3_sensor80_lab_js, 'w') as js_:
         js_.write(js)
-    print(len(thick14hc3sensor16sensor64_lab), 'thick14_hc3_sensor80_lab_js')
-    print("got {}!".format(thick14_hc3_sensor80_lab_js))
+    print("thick14hc3sensor80 len: {}".format(len(thick14hc3sensor80_lab)))
 
 
 if __name__ == "__main__":

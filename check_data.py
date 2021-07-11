@@ -54,12 +54,12 @@ def same_machine_recip(dir_):
             filename0_ = os.path.join(dir_, cvs_name[3:])
             filename1_ = os.path.join(path, cvs_name[3:])
             try:
-                shutil.move(filename0, filename1)
+                shutil.copy(filename0, filename1)
             except:
                 print(filename0)
                 pass
             try:
-                shutil.move(filename0_, filename1_)
+                shutil.copy(filename0_, filename1_)
             except:
                 print(filename0_)
                 pass
@@ -118,7 +118,7 @@ def get_thickness(csv_dir, files):
 
 def evt_csv_par(csv_dir):
     files = os.listdir(csv_dir)
-    print("before remove: {}".format(len(files)))
+    print("before recopy: {}".format(len(files)))
     evt = [i for i in files if "EVT" in i]
     csv = [i for i in files if "EVT" not in i]
     print("evt files: {}, csv files: {}".format(len(evt), len(csv)))
@@ -129,12 +129,12 @@ def evt_csv_par(csv_dir):
                 data.append(f1)
     for f in evt:
         if f not in data:
-            os.remove(r"D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件\\" + f)
+            os.recopy(r"D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件\\" + f)
     for f in csv:
         if "EVT" + f not in data:
-            os.remove(r"D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件\\" + f)
+            os.recopy(r"D:\work\project\卡尔蔡司AR镀膜\卡尔蔡司AR模色推优数据_20210610\33#机台文件\\" + f)
     files = os.listdir(csv_dir)
-    print("after remove: {}".format(len(files)))
+    print("after recopy: {}".format(len(files)))
 
 
 def get_file_sensor(csv_dir, sensores, js_name):
@@ -221,8 +221,8 @@ def select_csv(useful_csv, evt_thickness_val, csv_dir, file_sensor_dict):
         if file not in csv_list:
             full_path1 = os.path.join(csv_dir, file)
             full_path2 = os.path.join(csv_dir, "EVT" + file)
-            os.remove(full_path1)
-            os.remove(full_path2)
+            os.recopy(full_path1)
+            os.recopy(full_path2)
             del js_file[file]  # 删除膜层不足7的csv键值
     json_sensor = json.dumps(js_file)
     with open(file_sensor_dict, 'w') as js_file:
@@ -555,5 +555,211 @@ if __name__ == "__main__":
     #                                   feature135_lab_js)
     dir_ = r'D:\work\project\卡尔蔡司AR镀膜\第二批7.1\机台文件'
     # same_machine_recip(dir_)
+
+    # y1 = np.load(r'./1.npy')
+    # y2 = np.load(r'./2.npy')
+    # m, n = y1.shape
+    # print(m, n)
+    # count = 0
+    # for i in range(m):
+    #     for j in range(m):
+    #         if y1[i].all() == y2[j].all():
+    #             count += 1
+    # print(count)
+
+    # check 耗材js data
+    # hc_js1 = r'D:\work\project\卡尔蔡司AR镀膜\第三批\0705\thick_hc_lab.json'
+    # hc_js2 = r'D:\work\project\卡尔蔡司AR镀膜\ML_ZEISS\tmp.json'
+    # hc1 = json.load(open(hc_js1, 'r'))
+    # hc2 = json.load(open(hc_js2, 'r'))
+    # k1s = []
+    # v1s = []
+    # k2s = []
+    # v2s = []
+    # for k, v in hc1.items():
+    #     k1s.append(k)
+    #     v1s.append(v)
+    # for k, v in hc2.items():
+    #     k2s.append(k)
+    #     v2s.append(v)
+    # f = open(r'data_info_0707.txt', 'w')
+    # for i, k2 in enumerate(k2s):
+    #     try:
+    #         ind = k1s.index(k2)
+    #         if v1s[ind] != v2s[i]:
+    #             print(v1s[ind])
+    #             print(v2s[i])
+    #             f.write("thickness14_hc3: " + k2 + '\n')
+    #             s1 = ''.join(str(i)+',' for i in v1s[ind])
+    #             s2 = ''.join(str(i) + ',' for i in v2s[i])
+    #             f.write("lab1: " + s1+'\n')
+    #             f.write("lab2: " + s2+'\n')
+    #             f.write('\n')
+    #     except:
+    #         continue
+
+
+
+    # 0709 计算结果相似度
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+
+    def xsd(a, best):
+        a_ = np.array(a)
+        b_ = np.array(best)
+        print(np.corrcoef([a_, b_])[0][1])
+        weights = [1 for i in range(81)]
+        nms = [380 + i * 5 for i in range(81)]
+        t = [380, 400, 405, 410, 435, 440, 445, 635, 640, 645, 780]
+        for n in t:
+            weights[nms.index(n)] = 2
+
+        res = [(a[i] - best[i]) ** 2 * weights[i] for i in range(81)]
+        print("mse: {}".format(np.mean(res)))
+        return np.corrcoef([a_, b_])[0][1], np.mean(res)
+
+
+    # plt.xlabel("Wave-length")
+    # plt.ylabel("Reflectance")
+    #
+    # plt.plot(nms, best, color='pink', label='best curve')
+    # plt.plot(nms, a, color='black', label='sample_curve')
+    # plt.legend()
+    # plt.show()
+
+
+    # a = [11.27, 7.28, 5.08, 3.53, 2.08, 1.12, 0.77, 0.73, 0.64, 0.74, 1.18, 1.4, 1.6, 1.65, 1.73, 1.92, 2.02, 1.99, 1.84,
+    #      1.68, 1.61, 1.64, 1.65, 1.54, 1.3, 1.09, 0.96, 0.97, 0.98, 0.94, 0.86, 0.72, 0.59, 0.57, 0.51, 0.49, 0.49, 0.54,
+    #      0.51, 0.45, 0.37, 0.3, 0.27, 0.23, 0.2, 0.3, 0.26, 0.24, 0.22, 0.14, 0.17, 0.2, 0.23, 0.36, 0.31, 0.35, 0.39, 0.52,
+    #      0.52, 0.52, 0.56, 0.67, 0.78, 0.87, 1.06, 1.25, 1.5, 1.65, 1.85, 2.1, 2.29, 2.49, 2.7, 2.92, 3.14, 3.33, 3.62,
+    #      3.75, 4.1, 4.31, 4.67]
+
+    best = [5.52, 3.53, 1.97, 1.28, 0.74, 0.7, 0.85, 1.05, 1.23, 1.43, 1.63, 1.82, 1.84, 1.8, 1.75, 1.73, 1.64, 1.49,
+            1.39, 1.31, 1.23, 1.16, 1.03, 0.91, 0.85, 0.86, 0.84, 0.77, 0.71, 0.64, 0.61, 0.61, 0.58, 0.56, 0.53, 0.46,
+            0.46, 0.44, 0.41, 0.43, 0.4, 0.39, 0.36, 0.25, 0.19, 0.17, 0.21, 0.19, 0.17, 0.17, 0.2, 0.2, 0.16, 0.20,
+            0.26, 0.35, 0.41, 0.57, 0.64, 0.71, 0.9, 1.04, 1.17, 1.27, 1.43, 1.56, 1.82, 2.07, 2.4, 2.72, 3.02, 3.33,
+            3.58, 3.87, 3.97, 4.34, 4.57, 4.73, 5.03, 5.45, 5.94]
+
+
+    # y1 = np.load(r'./train.npy')
+    # y2 = np.load(r'./modified_x.npy')
+    # mse1 = []
+    # mse2 = []
+    # a1 = []
+    # b1 = []
+    # sample_num, dims = y1.shape
+    # for i in range(sample_num):
+    #     a = y1[i, :]
+    #     b = y2[i, :]
+    #     corr, mse = xsd(a, best)
+    #     a1.append(corr)
+    #     mse1.append(mse)
+    # print(np.mean(a1), np.mean(mse))   # b: 0.9581901163212438 0.08417979853069367   # a: 0.9555943864195805 0.30164862646093643
+    # 0.9577425168730154 0.1332909929220622
+
+    import heapq
+    def get_max_index(nums):
+        temp = []
+        Inf = 0
+        for i in range(3):
+            temp.append(nums.index(max(nums)))
+            nums[nums.index(max(nums))] = Inf
+        temp.sort()
+        return temp
+
+    import collections
+
+    all_ = []
+    y1 = np.load(r'./1.npy')
+    print(y1.shape)
+    y2 = np.load(r'./2.npy')
+    for i in range(y1.shape[0]):
+        a = []
+        base = y1[i, :].tolist()
+        modif = y2[i, :].tolist()
+        for j in range(y1.shape[1]):
+            diff = base[j] - modif[j]
+            diff /= base[j]
+            diff = abs(diff)
+            a.append(diff)
+        res = get_max_index(a)
+        # print(res)
+        all_.extend(res)
+    out = collections.Counter(all_)
+    print(out)
+
+#
+# def lower_filename(base_dir, tmp_dir):
+#     '''
+#
+#     :param base_dir: D:\work\project\卡尔蔡司AR镀膜\第三批\33机台文件
+#     :param tmp_dir: 临时文件夹, 后续会被删除可随意命名
+#     :return:
+#     '''
+#     # base_dir = r'D:\work\project\卡尔蔡司AR镀膜\第三批\33机台文件'
+#     files = os.listdir(base_dir)
+#     for f in files:
+#         if '.7z' in f or '.zip' in f:
+#             os.recopy(os.path.join(base_dir, f))
+#     fs = os.listdir(base_dir)
+#     if not os.path.exists(tmp_dir):
+#         os.mkdir(tmp_dir)
+#     for f in fs:
+#         path1 = os.path.join(base_dir, f)
+#         path2 = os.path.join(tmp_dir, f.lower())
+#         shutil.copy(path1, path2)
+#     os.rmdir(base_dir)
+#     os.rename(tmp_dir, base_dir)
+
+# def split_CX_CC(base_data_dir):
+#     pre_dir = base_data_dir[:-1 - len(base_data_dir.split('\\')[-1])]
+#     cc_dir = os.path.join(pre_dir, r'cc')
+#     cx_dir = os.path.join(pre_dir, r'cx')
+#     if not os.path.exists(cc_dir):
+#         os.mkdir(cc_dir)
+#     if not os.path.exists(cx_dir):
+#         os.mkdir(cx_dir)
+#     all_file = os.listdir(base_data_dir)
+#     evt_files = [i for i in all_file if "evt" in i]
+#     cc = []
+#     cx = []
+#     for evt_f in evt_files:
+#         path = os.path.join(base_data_dir, evt_f)
+#         print(path)
+#         with open(path, 'r') as f:
+#             for index, line in enumerate(f):
+#                 if 'Recipe Name :' in line:
+#                     cccx = line.split(',')[1]
+#                     if 'CC' in cccx:
+#                         cc.append(evt_f)
+#                     elif 'CX' in cccx:
+#                         cx.append(evt_f)
+#     for cc_ in cc:
+#         path_sensor1 = os.path.join(base_data_dir, cc_[3:])
+#         path = os.path.join(base_data_dir, cc_)
+#         path_evt2 = os.path.join(cc_dir, cc_)
+#         shutil.copy(path, path_evt2)
+#         if os.path.exists(path_sensor1):
+#             path_sensor2 = os.path.join(cc_dir, cc_[3:])
+#             shutil.copy(path_sensor1, path_sensor2)
+#     for cx_ in cx:
+#         path_sensor1 = os.path.join(base_data_dir, cx_[3:])
+#         path = os.path.join(base_data_dir, cx_)
+#         path_evt2 = os.path.join(cx_dir, cx_)
+#         shutil.copy(path, path_evt2)
+#         if os.path.exists(path_sensor1):
+#             path_sensor2 = os.path.join(cx_dir, cx_[3:])
+#             shutil.copy(path_sensor1, path_sensor2)
+
+
+
+
+
+base_dir = r'D:\work\project\卡尔蔡司AR镀膜\第三批\33机台文件'
+
+
+
+
 
 
