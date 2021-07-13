@@ -83,9 +83,11 @@ def plot_loss(loss):
 def generate_data(data_part1, file1, file2, process_data, base_data_dir, CC_dir, CX_dir, thick14_hc3_sensor16_lab_js,
                   thick14_hc3_sensor80_lab_js, feature135_lab_js, full_135feature_js, flag=3):  # flag=0,默认选最新最多的特征
 
+    # concate_data(data_part1, feature135_lab_js, full_135feature_js)
+
     # 可备选的,使用的json数据,分别有: 135, 33, 97 dims-feature
     X_list = [full_135feature_js, feature135_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js]
-    tmp = r'./f16lab.json'   # r'./f16lab.json'
+    tmp = X_list[flag]
     if not os.path.exists(tmp):
         data_post_process(file1, file2, process_data, base_data_dir, CC_dir, CX_dir,
                           thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, feature135_lab_js).run()
@@ -96,37 +98,23 @@ def generate_data(data_part1, file1, file2, process_data, base_data_dir, CC_dir,
         thicknesshc_curve = json.load(reader)
     Y = []
     X = []
-    for f16, lab in thicknesshc_curve.items():
-        Y.append(lab)
-        X.append(f16)
+    for thicknesshc, lab_curve in thicknesshc_curve.items():
+        Y.append(lab_curve[1])
+        X.append(lab_curve[0])
     Y = [[float(i) for i in a] for a in Y]
     X = [i.split(',')[:-1] for i in X]
-
+    for i in range(len(X)):
+        if len(X[i]) != 49:
+            Y.pop(i)
+    X = [a for a in X if len(a) == 49]
     print("all dara_lens: {}".format(len(X)))
     X = [[float(i) for i in a] for a in X]
+    k = 5
+    X = Select_feature(X, Y, k=k)
     X = np.array(X)
     Y = np.array(Y)
     print("data_size: {}, {}".format(X.shape, Y.shape))
     return X, Y
-
-
-
-# def compare_res(best):
-#     best_ = np.array(best)
-#     y2 = np.load(r'./step2_y.npy')
-#     y1 = np.load(r'./step1_y.npy')
-#     mse2 = []
-#     sample_num, dims = y2.shape
-#     plt.title('compare lab_curve')
-#     plt.xlabel("Wave-length")
-#     plt.ylabel("Reflectance")
-#
-#     x = [380 + 5 * i for i in range(dims)]
-#     for i in range(sample_num):
-#         b = y2[i, :]
-#         mse2.append(weighted_mse(b))
-#     print("fine_tune mse: {}".format(np.mean(mse2)))
-
 
 def compare_res(best):
     best_ = np.array(best)
@@ -143,6 +131,8 @@ def compare_res(best):
     for i in range(sample_num):
         a = y1[i, :]
         b = y2[i, :]
+        # mse1.append(metrics.mean_squared_error(a, best_))
+        # mse2.append(metrics.mean_squared_error(b, best_))
         mse1.append(weighted_mse(a))
         mse2.append(weighted_mse(b))
         plt.plot(x, a, color='cornflowerblue')
@@ -158,7 +148,7 @@ def compare_res(best):
     plt.savefig("compare_lab_curve.png")
     plt.show()
     print("base mse: {}, fine_tune mse: {}".format(np.mean(mse1), np.mean(mse2)))
-
+    # print(np.mean(mse1) > np.mean(mse2))
 
 
 def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, all_data, epochs, best, is_train=True,
@@ -210,18 +200,9 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_datalo
             train_loss = 0
             for ii, (data, label) in enumerate(all_data):
                 if epoch == 0:
-                    model.eval()
-                    preds = model(data)
-                    y_pred = preds.detach().numpy()
-                    tmp = []
-                    for i in range(20):
-                        tmp.append(weighted_mse(y_pred[i]))
-                    print(np.mean(tmp))
                     x_data = scale.inverse_transform(data.detach().numpy())
-                    np.save(r'./step1_y.npy', y_pred)
                     print("start X: {}".format(x_data[0]))
                     np.save(r'./start_x.npy', x_data)
-                    np.save(r'./start_lab.npy', label)
                 # 用标准曲线作为target,逼近膜厚去拟合最佳曲线
                 target = best * data.shape[0]
                 target = np.array(target)
@@ -231,7 +212,7 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_datalo
                 data = Variable(data, requires_grad=True)
                 optimizer = optimizers.Adam({data},
                                             # lr=1e-3,
-                                            lr=0.25,
+                                            lr=0.1,
                                             # lr=5e-3,
                                             betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)
                 optimizer.zero_grad()
@@ -246,9 +227,8 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_datalo
                     preds = model(data)
                     y_pred = preds.detach().numpy()
                     x_data = scale.inverse_transform(data.detach().numpy())
+                    print("end X: {}".format(x_data[0]))
                     np.save(r'./step2_y.npy', y_pred)
-                    np.save(r'./modified_x.npy', x_data)
-                    np.save(r'./modified_lab.npy', label)
             train_loss /= len(train_dataloader)
             loss_list.append(train_loss)
             # print('-' * 10, 'loss: {}'.format(train_loss), '-' * 10)
@@ -392,10 +372,17 @@ if __name__ == "__main__":
     data_part1 = os.path.join(part_root_dir1, 'all.json')
     full_135feature_js = os.path.join(root_dir, sub_dir, 'all.json')
 
+    if flag == 3:
+        data_class = data_post_process(file1, file2, process_data, base_data_dir, CC_dir, CX_dir,
+                                       thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, feature135_lab_js)
+        # data_class.clean_data_machineid()
+        # data_class.clean_data_nthickness()
 
     X, Y = generate_data(data_part1, file1, file2, process_data, base_data_dir, CC_dir, CX_dir,
                                        thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, feature135_lab_js, full_135feature_js)
 
+    # show_all_y(Y, best)
+    # X[np.isnan(X)] = 0.0
     batch_size = X.shape[0]
     input_dim = X.shape[-1]
     output_dim = Y.shape[-1]

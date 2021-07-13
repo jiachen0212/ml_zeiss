@@ -752,14 +752,56 @@ if __name__ == "__main__":
 #             path_sensor2 = os.path.join(cx_dir, cx_[3:])
 #             shutil.copy(path_sensor1, path_sensor2)
 
+    from util import calculate_Lab
+    def lab_okng(v, v_range):
+        V = float(v)
+        if V >= v_range[0] and V <= v_range[1]:
+            return 1
+        return 0
 
-
-
-
-base_dir = r'D:\work\project\卡尔蔡司AR镀膜\第三批\33机台文件'
-
-
-
-
+    import xlrd
+    num33_lab = dict()
+    msqx = r'D:\work\project\卡尔蔡司AR镀膜\第三批\33# DVS双面膜色2021.1~2021.6.xlsx'
+    wb = xlrd.open_workbook(msqx)
+    data = wb.sheet_by_name(r'Sheet1')
+    rows = data.nrows
+    need_title = [r'炉序号', r'L值',  r'A值', r'B值']
+    lab_curve_index = [r'380', r'780']
+    number_index = dict()
+    number_labokng = dict()
+    numb33_lab = dict()
+    numokng = dict()
+    a = 0
+    for count in range(10):
+        try:
+            title = data.row_values(count)
+            num33_ind, Lind, Aind, Bind = title.index(need_title[0]), title.index(need_title[1]), title.index(need_title[2]), title.index(need_title[3])
+            labstart, labend = title.index(lab_curve_index[0]), title.index(lab_curve_index[1])
+            a += 1
+            break
+        except:
+            continue
+    for i in range(a, rows):
+        num33 = data.cell(i, num33_ind).value
+        number_index[num33] = number_index.get(num33, 0) + 1
+        if number_index[num33] == 4:
+            L = data.cell(i, Lind).value
+            A = data.cell(i, Aind).value
+            B = data.cell(i, Bind).value
+            label = lab_okng(L, [3.3, 6.8]) and lab_okng(A, [-2, 2]) and lab_okng(B, [-18, -15])
+            number_labokng[num33] = label
+            tmp = data.row_values(i)[labstart: labend + 1]
+            tmp = [i for i in tmp if i != '']
+            if len(tmp) == 81:
+                numb33_lab[num33] = tmp
+                l, a, b = calculate_Lab(tmp)
+                res = lab_okng(l, [3.3, 6.8]) and lab_okng(a, [-2, 2]) and lab_okng(b, [-18, -15])
+                numokng[num33] = res
+    a = 0
+    for num, lab in numokng.items():
+        if lab != number_labokng[num]:
+            print(lab, number_labokng[num])
+            a += 1
+    print(a)
 
 

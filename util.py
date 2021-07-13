@@ -1,6 +1,6 @@
 # coding=utf-8
 from math import fabs, copysign
-
+import json
 import numpy as np
 import xlrd
 from sklearn.feature_selection import SelectKBest
@@ -179,21 +179,13 @@ def fun3(Xxn):
 
 
 def calculate_Lab(best):
-    # best = [5.52, 3.53, 1.97, 1.28, 0.74, 0.7, 0.85, 1.05, 1.23, 1.43, 1.63, 1.82, 1.84, 1.8, 1.75, 1.73, 1.64, 1.49,
-    #         1.39, 1.31, 1.23, 1.16, 1.03, 0.91, 0.85, 0.86, 0.84, 0.77, 0.71, 0.64, 0.61, 0.61, 0.58, 0.56, 0.53, 0.46,
-    #         0.46, 0.44, 0.41, 0.43, 0.4, 0.39, 0.36, 0.25, 0.19, 0.17, 0.21, 0.19, 0.17, 0.17, 0.2, 0.2, 0.16, 0.20,
-    #         0.26, 0.35, 0.41, 0.57, 0.64, 0.71, 0.9, 1.04, 1.17, 1.27, 1.43, 1.56, 1.82, 2.07, 2.4, 2.72, 3.02, 3.33,
-    #         3.58, 3.87, 3.97, 4.34, 4.57, 4.73, 5.03, 5.45, 5.94]
     remda = [380 + 5 * i for i in range(81)]
     XYZ_fun = r'D:\work\project\卡尔蔡司AR镀膜\文档s\蔡司资料0615\Lab计算及膜厚范围.xlsx'
     wb = xlrd.open_workbook(XYZ_fun)
     data = wb.sheet_by_name(r'色分配函数')
     fx = data.col_values(2)[4:]
-    # print(fx, 'fx')
     fy = data.col_values(3)[4:]
-    # print(fy, 'fy')
     fz = data.col_values(4)[4:]
-    # print(fz, 'fz')
     Xn = fun1(fx, fy, remda)
     Yn = fun1(fy, fy, remda)
     Zn = fun1(fz, fy, remda)
@@ -222,15 +214,11 @@ def top_k_feature(remed, Y, X, all, n):
     a = X[0].tolist()
     b = X_slim[0].tolist()
     for i in b:
-        # print(i)
-        # print(a.index(i))
-        # print(a)
         all.append(a.index(i))
 
-
+import collections
 def Select_feature(X, Y, k=10):
     '''
-
     :param X: numpy
     :param Y: list
     :return:
@@ -254,11 +242,12 @@ def Select_feature(X, Y, k=10):
     for i in import_index:
         # 每个频段选top20
         top_k_feature(i, Y, X, all, n=k)
+    print(collections.Counter(all))
     slim_feature = list(set(all))
-    # print(slim_feature)
+    print(slim_feature)
     print("特征筛选后的特征维度: {}".format(len(slim_feature)))
     X_slim = thicknesshc
-    # X_slim = None   # 不要前面17层膜厚+耗材信息
+    X_slim = None   # 不要前面17层膜厚+耗材信息
     for ind in slim_feature:
         if X_slim is not None:
             tmp = np.reshape(X[:, ind], (-1, 1))
@@ -286,3 +275,32 @@ def weighted_mse(lab):
 
     return np.mean(res)
 
+
+all_data = json.load(open(r'D:\work\project\卡尔蔡司AR镀膜\第三批\0705\thick14hc3sensor64_lab.json', 'r'))
+f = json.load(open(r'./little_ng.json', 'r'))
+large_ng = dict()
+nums = list(f.keys())
+for num, v in all_data.items():
+    if num in nums:
+        large_ng[num] = v
+
+large_ng_lab = dict()
+f16_33 = dict()
+seleted = [7, 9, 11, 12, 13, 14, 16, 17, 18, 19, 21, 22, 23, 25, 27, 30]
+for num, f49_lab in large_ng.items():
+    f16 = []
+    f32 = (f49_lab[0]).split(',')[17:-1]
+    lab = f49_lab[1]
+    for ind in seleted:
+        f16.append(f32[ind])
+    f16 = ''.join(i+',' for i in f16)
+    large_ng_lab[f16] = lab
+    f16_33[f16] = num
+
+data = json.dumps(large_ng_lab)
+with open('./f16lab_little.json', 'w') as js_file:
+    js_file.write(data)
+
+data = json.dumps(f16_33)
+with open('./f1633_little.json', 'w') as js_file:
+    js_file.write(data)

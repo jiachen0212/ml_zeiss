@@ -214,7 +214,8 @@ def times_feature(data):
     # ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
     # f_sensor.append(ae2[0][1])
     f_sensor.append(np.mean(data))
-    f_sensor.append(np.std(data, ddof=1))
+    # 0712 不使用std特征
+    # f_sensor.append(np.std(data, ddof=1))
     return f_sensor
 
 
@@ -257,7 +258,7 @@ def num33_64sensor(csv_dict_js, sub_sen_list, num_evt12_data):
             evt_8steps_sensor_feature = evt_8steps_sensor_feature1
         else:
             continue
-        assert len(evt_8steps_sensor_feature) == 64
+        assert len(evt_8steps_sensor_feature) == 32   # 64
         numb33_64sensor[numb33] = ''.join(str(i) + ',' for i in evt_8steps_sensor_feature)
 
     return numb33_64sensor
@@ -268,7 +269,7 @@ def get8step_sensor_feature(num_evt12, base_data_dir, csv_dict_js, thick14_hc3_s
     关联 evt和 sensor_value,获取工艺的8个step起始时间,并对应计算各个阶段内,thickness,rate的时序特征. 8*4*2 = 64维
 
     '''
-    print("add 8*4*2  8steps sensor feature, mean and std ~")
+    print("add 8*4*2  8steps sensor mean_feature")
     num_evt12_data = json.load(open(num_evt12, 'r'))
     exists_sensor = open(r'./sensor_csv.txt', 'r').readlines()[0]
     exists_sensors = exists_sensor.split(',')[:-1]
@@ -283,8 +284,11 @@ def get8step_sensor_feature(num_evt12, base_data_dir, csv_dict_js, thick14_hc3_s
             sensor64 = numb33_64sensor_dict[num]
         except:
             continue
-        thick14hc3sensor80_lab[num][0] = number33_thick14hc3sensor16_lab[num][0] + sensor64
-    assert len(thick14hc3sensor80_lab[num][0].split(',')) == 98
+        new_f = number33_thick14hc3sensor16_lab[num][0] + sensor64
+        if len(new_f.split(',')) == 50:
+            thick14hc3sensor80_lab[num][0] = new_f
+        else:
+            del thick14hc3sensor80_lab[num]
     js = json.dumps(thick14hc3sensor80_lab)
     with open(thick14_hc3_sensor80_lab_js, 'w') as js_:
         js_.write(js)

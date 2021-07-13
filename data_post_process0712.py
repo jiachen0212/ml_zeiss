@@ -77,8 +77,10 @@ class data_post_process():
         number33_thick14lab(self.membrane, self.evt_pair, self.number33_thicklab_js, self.num_evt12, k=self.index)
         # 添加3个耗材维度特征
         number33_thick14hc3lab(self.process_data, self.number33_thicklab_js, self.face, self.number33_thick14hc3lab_js)
-        # 添加8个step的mean特征
-        # get8step_sensor_feature(self.num_evt12, self.base_data_dir, self.csv_dict_js, self.number33_thick14hc3lab_js, self.thick14_hc3_sensor80_lab_js, self.sen_list)
+        # 添加thickness,rate等sensor列的时序特征(4*4=16dims)
+        add_sensor_feature(self.base_data_dir, self.num_evt12, self.number33_thick14hc3lab_js, self.sen_list, self.thick14_hc3_sensor16_lab_js)
+        # 添加8个step的时序特征(len=64 8*4*2)
+        get8step_sensor_feature(self.num_evt12, self.base_data_dir, self.csv_dict_js, self.thick14_hc3_sensor16_lab_js, self.thick14_hc3_sensor80_lab_js, self.sen_list)
         # 再加入19列有意义数据的38维特征
         all_usful_sensor_except_thickness(self.base_data_dir, self.num_evt12, self.thick14_hc3_sensor80_lab_js, self.feature135_lab_js)
         # import check_data.py 中的函数实现部分数据清洗功能
@@ -549,7 +551,7 @@ def all_usful_sensor_except_thickness(base_data_dir, num_evt12, thick14_hc3_sens
         number33_feature135[num][0] = thick14_hc3_sensor80_lab[num][0] + f
     nums = list(number33_feature135.keys())
     for num in nums:
-        if len(number33_feature135[num][0].split(',')) != 88:
+        if len(number33_feature135[num][0].split(',')) != 136:
             del number33_feature135[num]
     # finally
     for num, f135lab in number33_feature135.items():
