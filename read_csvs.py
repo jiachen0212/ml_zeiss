@@ -7,7 +7,7 @@ import numpy as np
 
 def get_evt_sensor_dict(sensor_lines, process_lines):
     '''
-    step_time = dict()   # process_name:step_name
+    step_time = dict()   # start step No. of : time
 
     sensor.csv info:
     running_times = []
@@ -32,7 +32,7 @@ def get_evt_sensor_dict(sensor_lines, process_lines):
                         process_time = spline[0]
                     process_name = spline[2]
                     step_time[process_name] = process_time
-        # 部分evt中有step no9,则不记录evt的最末行时间,不运行以下if.
+        # 部分evt中有step no.9,则不需要记录evt的最末行时间,不运行以下if.
         if len(step_time) == 8:
             if 'Total Process Time' in split_line:
                 if len(spline[0].split(':')[0]) > 1 and spline[0][0] == '0':
@@ -52,7 +52,7 @@ def get_evt_sensor_dict(sensor_lines, process_lines):
                 continue
             spline = split_line[:-1].split(',')
             if index == 0:
-                # 所有sensor参数名
+                # 所有sensor列名
                 sensor_names = spline[5:]
             else:
                 # 同上step_time, 时间统一格式处理
@@ -67,7 +67,7 @@ def get_evt_sensor_dict(sensor_lines, process_lines):
         return None, None, None, None
 
 
-def get_time_sensor(evt_dict, running_times, sensor_values, evtname):
+def get_time_sensor(step_time_dict, running_times, sensor_values, evtname):
     '''
     evt_dict: time: process
     sensor.csv: running_times, sensor_values
@@ -75,7 +75,7 @@ def get_time_sensor(evt_dict, running_times, sensor_values, evtname):
     '''
     time_sensor = dict()
     evt_process_time = []
-    for step_name, time in evt_dict.items():
+    for step_name, time in step_time_dict.items():
         evt_process_time.append(time)
     lens = len(evt_process_time)  # lens == 9  step1~8 + end_line
     assert lens == 9
@@ -93,49 +93,53 @@ def get_time_sensor(evt_dict, running_times, sensor_values, evtname):
                 sensor_end = len(running_times)
             else:
                 return time_sensor
+
         # check time
-        # print(dir_name, start, end)
-        # print(running_times[sensor_start-1], running_times[sensor_start], \
-        # running_times[sensor_end], running_times[sensor_end+1])
+        # print(evtname, start, end)
+        # print(running_times[sensor_start-1], running_times[sensor_start], running_times[sensor_end], running_times[sensor_end+1])
+
         cur_sensor_value = sensor_values[sensor_start:sensor_end]
         time_sensor[start] = cur_sensor_value
+
     # check
-    # tmp = list(time_sensor.keys())[2]
-    # print(dir_name, tmp, time_sensor[tmp][0])
+    # tmp = list(time_sensor.keys())[4]
+    # print(evtname, tmp, time_sensor[tmp][0])
+
     return time_sensor
 
 
-def process_sensor(evt_dict, time_sensor):
+def process_sensor(step_time_dict, time_sensor, n_thickness):
     '''
 
-    :param evt_dict:
+    :param step_time_dict:
     :param time_sensor:
     :return:
     time is the tmp_param
     '''
     evt_times = []
-    for step_name, time in evt_dict.items():
+    for step_name, time in step_time_dict.items():
         evt_times.append(time)
-    # 根据evt的time,对应获取sensor_value
-    process_sensor_dict = dict()
-    for step_name, time in evt_dict.items():
+    # 根据evt文件中的steptime,对应获取sensor_value
+    step_sensor_dict = dict()
+    for step_name, time in step_time_dict.items():
         try:
             sensor_value_list = time_sensor[time]
         except:
             # print(dir_name, time)   # evt文件末尾的几行,无信息量
             continue
-        process_sensor_dict[step_name] = sensor_value_list
+        step_sensor_dict[step_name] = sensor_value_list
+    assert len(step_sensor_dict) == n_thickness + 1
 
-    return process_sensor_dict
+    return step_sensor_dict
 
 
-def get_info_0630(path, exists_sensors):
+def get_info_0630(n_thickness, path, exists_sensors):
     '''
     :param path: dir path
     :return: all_dir's process_sensor_value_dict. a list
 
     '''
-    all_process_sensor = dict()
+    all_step_sensor = dict()
     all_sensor_index_dict = dict()
     evtfiles = ['evt'+i for i in exists_sensors]
     for evtname in evtfiles:
@@ -147,30 +151,30 @@ def get_info_0630(path, exists_sensors):
         except:
             continue
         # step1.
-        # 为每一对csv文件,存储evt, sensor dict{}
-        evt_dict, running_times, sensor_values, sensor_names = get_evt_sensor_dict(sensor_lines, process_lines)
+        # 得到step no.x of 9: time dict, sensor.csv文件的 time list sensor_value list
+        step_time_dict, running_times, sensor_values, sensor_names = get_evt_sensor_dict(sensor_lines, process_lines)
 
         if sensor_values:
             # step2.
-            # 时间和sensor_value关联:
-            # evt中最后一行的时间在sensor中可能找不到,它是evt的end信息
-            time_sensor = get_time_sensor(evt_dict, running_times, sensor_values, evtname)
+            # 通过时间, 获取8段step的 sensor_value list:
+            # evt中最后一个时间在sensor.csv中可能找不到,就直接读取到最后一行即可
+            time_sensor = get_time_sensor(step_time_dict, running_times, sensor_values, evtname)
 
             # step3.
-            # process_name 和 sensor_value联系起来
-            if time_sensor:
-                process_sensor_dict = process_sensor(evt_dict, time_sensor)
-                all_process_sensor[evtname] = process_sensor_dict
+            # step no.x of 9 和 sensor_value联系起来
+            if len(time_sensor) == n_thickness + 1:
+                step_sensor_dict = process_sensor(step_time_dict, time_sensor, n_thickness)
+                all_step_sensor[evtname] = step_sensor_dict
                 all_sensor_index_dict[evtname] = sensor_names
         else:
             continue
-    print("all_process_sensor len: {}, all_sensor_index_dict len: {}".format(len(all_process_sensor), len(all_sensor_index_dict)))
-    return all_process_sensor, all_sensor_index_dict
+    print("all_process_sensor len: {}, all_sensor_index_dict len: {}".format(len(all_step_sensor), len(all_sensor_index_dict)))
+    return all_step_sensor, all_sensor_index_dict
 
 
-def process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js, sen_list, exists_sensors):
+def process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js, sen_list, exists_sensors, n_thickness):
     '''
-    :param all_process_sensor: dir_name: each_dict
+    :param all_process_sensor: evt_name: each_dict
     each_dict: process_name: sensor_value_list
     sensor_index_dict: index, sensor_name
     :return:
@@ -178,24 +182,20 @@ def process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js, 
     '''
     csv_dict = dict()
     evts = ['evt'+i for i in exists_sensors]
-    for dir_name, process_sensor in all_process_sensor.items():
-        if dir_name in evts:
-            sensor_name_list = all_sensor_name[dir_name]
+    for evt_name, process_sensor in all_process_sensor.items():
+        if evt_name in evts:
+            sensor_name_list = all_sensor_name[evt_name]
             dict_ = dict()
-            for process_name, sensor_value_list in process_sensor.items():
+            for step_name, sensor_value_list in process_sensor.items():
                 tmp_dict = dict()
                 for index, each_sensor in enumerate(sensor_name_list):
                     if each_sensor in sen_list:
                         # 获取每一sensor参数的,所有列数据值. each_sensor_name: [value]
                         tmp_dict[each_sensor] = [row[index] for row in sensor_value_list]
-                dict_[process_name] = tmp_dict
-            # pre code
-            # csv_dict[dir_name] = dict_
-            # assert len(dict_) == 8
-
+                dict_[step_name] = tmp_dict
             # 0711
-            if len(dict_) == 8:
-                csv_dict[dir_name] = dict_
+            if len(dict_) == n_thickness + 1:
+                csv_dict[evt_name] = dict_
     print("evt_8steps sensor len: {}".format(len(csv_dict)))
 
     # {dir_name: {process_name: {each_sensor: [value_list]}}}
@@ -205,7 +205,7 @@ def process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js, 
 
 
 
-def times_feature(data):
+def times_feature(data, process, evtcc, sen_n):
     f_sensor = []
     # ts = pd.Series(data)
     # ae1 = tsf.feature_extraction.feature_calculators.ar_coefficient(ts, [{'coeff': 0, 'k': 10}])
@@ -214,8 +214,13 @@ def times_feature(data):
     # ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
     # f_sensor.append(ae2[0][1])
     f_sensor.append(np.mean(data))
-    # 0712 不使用std特征
     # f_sensor.append(np.std(data, ddof=1))
+    # print(len(data), process, evtcc, data, sen_n)
+    # print('\n')
+    # if len(data) == 0:
+    #     f_sensor.append(0)
+    # else:
+    #     f_sensor.append(max(data))
     return f_sensor
 
 
@@ -223,7 +228,6 @@ def num33_64sensor(csv_dict_js, sub_sen_list, num_evt12_data):
     numb33_64sensor = dict()
     evt_sen_name_value = json.load(open(csv_dict_js, 'r'))
     for numb33, evtcccx in num_evt12_data.items():
-        # evtxxxx.csv
         evtcc = evtcccx[0]
         evtcx = evtcccx[1]
         evt_8steps_sensor_feature1 = []
@@ -232,12 +236,12 @@ def num33_64sensor(csv_dict_js, sub_sen_list, num_evt12_data):
             for process, sensor_dict in evt_sen_name_value[evtcc].items():
                 for sen_n, sen_v in sensor_dict.items():
                     if sen_n in sub_sen_list:
-                        each_step_sensor_feature = times_feature([float(i) for i in sen_v])
+                        each_step_sensor_feature = times_feature([float(i) for i in sen_v], process, evtcc, sen_n)
                         evt_8steps_sensor_feature1.extend(each_step_sensor_feature)
             for process, sensor_dict in evt_sen_name_value[evtcx].items():
                 for sen_n, sen_v in sensor_dict.items():
                     if sen_n in sub_sen_list:
-                        each_step_sensor_feature = times_feature([float(i) for i in sen_v])
+                        each_step_sensor_feature = times_feature([float(i) for i in sen_v], process, evtcc, sen_n)
                         evt_8steps_sensor_feature2.extend(each_step_sensor_feature)
             evt_8steps_sensor_feature = [(evt_8steps_sensor_feature1[i] + evt_8steps_sensor_feature2[i])/2 for i in range(len(evt_8steps_sensor_feature1))]
         # 仅存在正面不存在背面sensor_csv
@@ -245,7 +249,7 @@ def num33_64sensor(csv_dict_js, sub_sen_list, num_evt12_data):
             for process, sensor_dict in evt_sen_name_value[evtcx].items():
                 for sen_n, sen_v in sensor_dict.items():
                     if sen_n in sub_sen_list:
-                        each_step_sensor_feature = times_feature([float(i) for i in sen_v])
+                        each_step_sensor_feature = times_feature([float(i) for i in sen_v], process, evtcc, sen_n)
                         evt_8steps_sensor_feature2.extend(each_step_sensor_feature)
             evt_8steps_sensor_feature = evt_8steps_sensor_feature2
         # 仅存在背面不存在正面sensor_csv
@@ -253,30 +257,29 @@ def num33_64sensor(csv_dict_js, sub_sen_list, num_evt12_data):
             for process, sensor_dict in evt_sen_name_value[evtcc].items():
                 for sen_n, sen_v in sensor_dict.items():
                     if sen_n in sub_sen_list:
-                        each_step_sensor_feature = times_feature([float(i) for i in sen_v])
+                        each_step_sensor_feature = times_feature([float(i) for i in sen_v], process, evtcc, sen_n)
                         evt_8steps_sensor_feature1.extend(each_step_sensor_feature)
             evt_8steps_sensor_feature = evt_8steps_sensor_feature1
         else:
             continue
-        assert len(evt_8steps_sensor_feature) == 32   # 64
+        assert len(evt_8steps_sensor_feature) == 16
         numb33_64sensor[numb33] = ''.join(str(i) + ',' for i in evt_8steps_sensor_feature)
 
     return numb33_64sensor
 
 
-def get8step_sensor_feature(num_evt12, base_data_dir, csv_dict_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, sen_list):
+def get8step_sensor_feature(n_thickness, num_evt12, base_data_dir, csv_dict_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, sen_list):
     '''
     关联 evt和 sensor_value,获取工艺的8个step起始时间,并对应计算各个阶段内,thickness,rate的时序特征. 8*4*2 = 64维
 
     '''
-    print("add 8*4*2  8steps sensor mean_feature")
     num_evt12_data = json.load(open(num_evt12, 'r'))
     exists_sensor = open(r'./sensor_csv.txt', 'r').readlines()[0]
     exists_sensors = exists_sensor.split(',')[:-1]
     number33_thick14hc3sensor16_lab = json.load(open(thick14_hc3_sensor16_lab_js, 'r'))
     thick14hc3sensor80_lab = copy.deepcopy(number33_thick14hc3sensor16_lab)
-    all_process_sensor, all_sensor_name = get_info_0630(base_data_dir, exists_sensors)
-    process_sensor_param_dict(all_process_sensor, all_sensor_name, csv_dict_js, sen_list, exists_sensors)
+    all_step_sensor, all_sensor_name = get_info_0630(n_thickness, base_data_dir, exists_sensors)
+    process_sensor_param_dict(all_step_sensor, all_sensor_name, csv_dict_js, sen_list, exists_sensors, n_thickness)
     numb33_64sensor_dict = num33_64sensor(csv_dict_js, sen_list, num_evt12_data)
 
     for num, thickhcsensor in number33_thick14hc3sensor16_lab.items():
@@ -285,7 +288,7 @@ def get8step_sensor_feature(num_evt12, base_data_dir, csv_dict_js, thick14_hc3_s
         except:
             continue
         new_f = number33_thick14hc3sensor16_lab[num][0] + sensor64
-        if len(new_f.split(',')) == 50:
+        if len(new_f.split(',')) == 34:
             thick14hc3sensor80_lab[num][0] = new_f
         else:
             del thick14hc3sensor80_lab[num]

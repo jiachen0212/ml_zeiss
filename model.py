@@ -81,14 +81,15 @@ def plot_loss(loss):
 
 
 def generate_data(data_part1, file1, file2, process_data, base_data_dir, CC_dir, CX_dir, thick14_hc3_sensor16_lab_js,
-                  thick14_hc3_sensor80_lab_js, feature135_lab_js, full_135feature_js, flag=3):  # flag=0,默认选最新最多的特征
+                  thick14_hc3_sensor80_lab_js, feature135_lab_js, thick14_lab_js, flag=3):  # flag=0,默认选最新最多的特征
 
     # 可备选的,使用的json数据,分别有: 135, 33, 97 dims-feature
-    X_list = [full_135feature_js, feature135_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js]
-    tmp = r'./f16lab.json'   # r'./f16lab.json'
+    X_list = [full_135feature_js, feature135_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, thick14_lab_js]
+    tmp = X_list[flag]
+    # tmp = r'./f16lab.json'   # r'./f16lab_little.json'
     if not os.path.exists(tmp):
         data_post_process(file1, file2, process_data, base_data_dir, CC_dir, CX_dir,
-                          thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, feature135_lab_js).run()
+                          thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, thick14_lab_js).run()
         print("data process done!")
     else:
         print("data has already processed! start mlp！！!")
@@ -97,12 +98,22 @@ def generate_data(data_part1, file1, file2, process_data, base_data_dir, CC_dir,
     Y = []
     X = []
     for f16, lab in thicknesshc_curve.items():
-        Y.append(lab)
-        X.append(f16)
+        # train model
+        Y.append(lab[1])
+        X.append(lab[0])
+        # X.append(f16)
+        # Y.append(lab)
     Y = [[float(i) for i in a] for a in Y]
     X = [i.split(',')[:-1] for i in X]
+    for i in range(len(X)):
+        if len(X[i]) != len(X[0]):
+            Y.pop(i)
+    X = [i for i in X if len(i) == len(X[0])]
 
-    print("all dara_lens: {}".format(len(X)))
+    # train model
+    k = 10
+    X = Select_feature(X, Y, k=k)
+
     X = [[float(i) for i in a] for a in X]
     X = np.array(X)
     Y = np.array(Y)
@@ -213,13 +224,8 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_datalo
                     model.eval()
                     preds = model(data)
                     y_pred = preds.detach().numpy()
-                    tmp = []
-                    for i in range(20):
-                        tmp.append(weighted_mse(y_pred[i]))
-                    print(np.mean(tmp))
                     x_data = scale.inverse_transform(data.detach().numpy())
                     np.save(r'./step1_y.npy', y_pred)
-                    print("start X: {}".format(x_data[0]))
                     np.save(r'./start_x.npy', x_data)
                     np.save(r'./start_lab.npy', label)
                 # 用标准曲线作为target,逼近膜厚去拟合最佳曲线
@@ -231,7 +237,7 @@ def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_datalo
                 data = Variable(data, requires_grad=True)
                 optimizer = optimizers.Adam({data},
                                             # lr=1e-3,
-                                            lr=0.25,
+                                            lr=0.2,
                                             # lr=5e-3,
                                             betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)
                 optimizer.zero_grad()
@@ -346,7 +352,7 @@ if __name__ == "__main__":
     import_index = x.index(750)
 
     # 1train or 0modified_thickness
-    flag = 0
+    flag = 1
     # get_important_x()
 
     # 标准lab曲线
@@ -392,9 +398,11 @@ if __name__ == "__main__":
     data_part1 = os.path.join(part_root_dir1, 'all.json')
     full_135feature_js = os.path.join(root_dir, sub_dir, 'all.json')
 
+    # 0712
+    number33_thicklab_js = r'./number33_thicklab.json'
 
     X, Y = generate_data(data_part1, file1, file2, process_data, base_data_dir, CC_dir, CX_dir,
-                                       thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, feature135_lab_js, full_135feature_js)
+                                       thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, feature135_lab_js, number33_thicklab_js)
 
     batch_size = X.shape[0]
     input_dim = X.shape[-1]
@@ -402,7 +410,7 @@ if __name__ == "__main__":
     hiden_dim = 80
     epochs_train = 3000
     # 调整膜厚值
-    epochs_finetune = 413
+    epochs_finetune = 1000
     # 数据规整化
     scale = StandardScaler(with_mean=True, with_std=True)
     # 注意后面观察膜厚的变化,需要用到它的逆操作: X = scale.inverse_transform(X)

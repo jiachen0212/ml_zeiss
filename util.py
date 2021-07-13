@@ -228,14 +228,10 @@ def Select_feature(X, Y, k=10):
     # 对17层膜厚+耗材之后的121维特征做重要性筛选
     thicknesshc = np.array([a[:17] for a in X])
     X = [a[17:] for a in X]
-
-    # X = [a[17:] for a in X]   # 14层膜后+3耗材特征都不要
-
     X = np.array(X)
-    X[np.isnan(X)] = 0.0
-    # X数据规整化
     scale = StandardScaler(with_mean=True, with_std=True)
     X = scale.fit_transform(X)
+    X[np.isnan(X)] = 0.0
     # sklearn 实现特征构造
     # X = PolynomialFeatures(degree=2).fit_transform(X)
     all = []
@@ -276,31 +272,32 @@ def weighted_mse(lab):
     return np.mean(res)
 
 
-all_data = json.load(open(r'D:\work\project\卡尔蔡司AR镀膜\第三批\0705\thick14hc3sensor64_lab.json', 'r'))
-f = json.load(open(r'./little_ng.json', 'r'))
-large_ng = dict()
-nums = list(f.keys())
-for num, v in all_data.items():
-    if num in nums:
-        large_ng[num] = v
+if __name__ == "__main__":
+    all_data = json.load(open(r'D:\work\project\卡尔蔡司AR镀膜\第三批\0705\thick14hc3sensor64_lab.json', 'r'))
+    f = json.load(open(r'./little_ng.json', 'r'))
+    large_ng = dict()
+    nums = list(f.keys())
+    for num, v in all_data.items():
+        if num in nums:
+            large_ng[num] = v
 
-large_ng_lab = dict()
-f16_33 = dict()
-seleted = [7, 9, 11, 12, 13, 14, 16, 17, 18, 19, 21, 22, 23, 25, 27, 30]
-for num, f49_lab in large_ng.items():
-    f16 = []
-    f32 = (f49_lab[0]).split(',')[17:-1]
-    lab = f49_lab[1]
-    for ind in seleted:
-        f16.append(f32[ind])
-    f16 = ''.join(i+',' for i in f16)
-    large_ng_lab[f16] = lab
-    f16_33[f16] = num
+    large_ng_lab = dict()
+    f16_33 = dict()
+    seleted = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    for num, f49_lab in large_ng.items():
+        f16 = []
+        f32 = (f49_lab[0]).split(',')[17:-1]
+        lab = f49_lab[1]
+        for ind in seleted:
+            f16.append(f32[ind])
+        f16 = ''.join(i+',' for i in f16)
+        large_ng_lab[f16] = lab
+        f16_33[f16] = num
 
-data = json.dumps(large_ng_lab)
-with open('./f16lab_little.json', 'w') as js_file:
-    js_file.write(data)
+    data = json.dumps(large_ng_lab)
+    with open('./f16lab_little.json', 'w') as js_file:
+        js_file.write(data)
 
-data = json.dumps(f16_33)
-with open('./f1633_little.json', 'w') as js_file:
-    js_file.write(data)
+    data = json.dumps(f16_33)
+    with open('./f1633_little.json', 'w') as js_file:
+        js_file.write(data)

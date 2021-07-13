@@ -25,7 +25,7 @@ class data_post_process():
     '''
 
     def __init__(self, evt33, membrane, process_data, base_data_dir, CC_dir, CX_dir, thick14_hc3_sensor16_lab_js,
-                 thick14_hc3_sensor80_lab_js, feature135_lab_js, flag=0):
+                 thick14_hc3_sensor80_lab_js, number33_thicklab_js, flag=0):
         '''
         :param MachineName-kinds:   ['1.56_DVS_CC', '1.56_DVS_CX', '1.6&1.67_DVS_CC', '1.6&1.67_DVS_CC_hpkf', '1.6&1.67_DVS_CX', '1.6&1.67_DVS_CX_hpkf', '1.6_DVSUN_CC']
 
@@ -51,17 +51,15 @@ class data_post_process():
         self.CX_dir = CX_dir
         self.thick14_hc3_sensor16_lab_js = thick14_hc3_sensor16_lab_js
         self.thick14_hc3_sensor80_lab_js = thick14_hc3_sensor80_lab_js
-        self.feature135_lab_js = feature135_lab_js
+        # self.feature135_lab_js = feature135_lab_js
         # 0711
         self.evt_pair = r'./正背面_thickness_evtname.txt'
-        self.number33_thicklab_js = r'./number33_thicklab.json'
+        self.number33_thicklab_js = number33_thicklab_js
         self.face = r'背面'
         self.number33_thick14hc3lab_js = r'./number33_thiclhc.json'
         self.num_evt12 = r'./num_evt12.json'
-        self.sen_list = ['ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_RATE', 'ACT_O1_QCMS_THICKNESS_CH1',
-                         'ACT_O1_QCMS_RATE_CH1']
+        self.sen_list = ['ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_THICKNESS_CH1']
         self.csv_dict_js = r'./evtname_sensor_name_value.json'
-
 
     # def __call__(self, ):
     def run(self, ):
@@ -78,9 +76,9 @@ class data_post_process():
         # 添加3个耗材维度特征
         number33_thick14hc3lab(self.process_data, self.number33_thicklab_js, self.face, self.number33_thick14hc3lab_js)
         # 添加8个step的mean特征
-        # get8step_sensor_feature(self.num_evt12, self.base_data_dir, self.csv_dict_js, self.number33_thick14hc3lab_js, self.thick14_hc3_sensor80_lab_js, self.sen_list)
+        get8step_sensor_feature(self.n_thickness, self.num_evt12, self.base_data_dir, self.csv_dict_js, self.number33_thick14hc3lab_js, self.thick14_hc3_sensor80_lab_js, self.sen_list)
         # 再加入19列有意义数据的38维特征
-        all_usful_sensor_except_thickness(self.base_data_dir, self.num_evt12, self.thick14_hc3_sensor80_lab_js, self.feature135_lab_js)
+        # all_usful_sensor_except_thickness(self.base_data_dir, self.num_evt12, self.thick14_hc3_sensor80_lab_js, self.feature135_lab_js)
         # import check_data.py 中的函数实现部分数据清洗功能
         # rate_thickness_check(self.data_dir)  # 膜厚设置\实测值diff与rate*2对比
 
