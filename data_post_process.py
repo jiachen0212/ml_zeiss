@@ -25,7 +25,7 @@ class data_post_process():
     '''
 
     def __init__(self, evt33, membrane, process_data, base_data_dir, CC_dir, CX_dir, thick14_hc3_sensor16_lab_js,
-                 thick14_hc3_sensor80_lab_js, number33_thicklab_js, flag=0):
+                 thick10_sensor8step_lab_js, number33_thicklab_js, flag=0):
         '''
         :param MachineName-kinds:   ['1.56_DVS_CC', '1.56_DVS_CX', '1.6&1.67_DVS_CC', '1.6&1.67_DVS_CC_hpkf', '1.6&1.67_DVS_CX', '1.6&1.67_DVS_CX_hpkf', '1.6_DVSUN_CC']
 
@@ -42,7 +42,7 @@ class data_post_process():
 
         self.base_data_dir = base_data_dir
         self.n_thickness = 7
-        self.index = 4
+        self.index = 1
         self.evt33 = evt33
         self.membrane = membrane
         self.evt_dict = dict()
@@ -50,18 +50,18 @@ class data_post_process():
         self.CC_dir = CC_dir
         self.CX_dir = CX_dir
         self.thick14_hc3_sensor16_lab_js = thick14_hc3_sensor16_lab_js
-        self.thick14_hc3_sensor80_lab_js = thick14_hc3_sensor80_lab_js
-        # self.feature135_lab_js = feature135_lab_js
-        # 0711
+        self.thick10_sensor8step_lab_js = thick10_sensor8step_lab_js
+
         self.evt_pair = r'./正背面_thickness_evtname.txt'
         self.number33_thicklab_js = number33_thicklab_js
         self.face = r'背面'
-        self.number33_thick14hc3lab_js = r'./number33_thiclhc.json'
+        self.number33_thick14hc3lab_js = r'./number33_thickhc.json'
         self.num_evt12 = r'./num_evt12.json'
-        self.sen_list = ['ACT_O1_QCMS_THICKNESS', 'ACT_O1_QCMS_THICKNESS_CH1']
+        # self.sen_list = ['ACT_O1_QCMS_THICKNESS_CH1', 'ACT_O1_QCMS_RATE_CH1']
+        self.sen_list = ['STAT_LT_CRYSTAL_CH1']
         self.csv_dict_js = r'./evtname_sensor_name_value.json'
 
-    # def __call__(self, ):
+
     def run(self, ):
 
         # step1.
@@ -72,15 +72,10 @@ class data_post_process():
 
         # step2.
         get_evtpair_info(self.CC_dir, self.CX_dir, self.evt33, self.evt_pair, self.n_thickness)
-        number33_thick14lab(self.membrane, self.evt_pair, self.number33_thicklab_js, self.num_evt12, k=self.index)
-        # 添加3个耗材维度特征
-        number33_thick14hc3lab(self.process_data, self.number33_thicklab_js, self.face, self.number33_thick14hc3lab_js)
-        # 添加8个step的mean特征
-        get8step_sensor_feature(self.n_thickness, self.num_evt12, self.base_data_dir, self.csv_dict_js, self.number33_thick14hc3lab_js, self.thick14_hc3_sensor80_lab_js, self.sen_list)
-        # 再加入19列有意义数据的38维特征
-        # all_usful_sensor_except_thickness(self.base_data_dir, self.num_evt12, self.thick14_hc3_sensor80_lab_js, self.feature135_lab_js)
-        # import check_data.py 中的函数实现部分数据清洗功能
-        # rate_thickness_check(self.data_dir)  # 膜厚设置\实测值diff与rate*2对比
+        number33_thick10lab(self.membrane, self.evt_pair, self.number33_thicklab_js, self.num_evt12, ind=self.index)
+        
+        # # step3. 添加8个step的sensor特征
+        get8step_sensor_feature(self.n_thickness, self.num_evt12, self.base_data_dir, self.csv_dict_js, self.number33_thicklab_js, self.thick10_sensor8step_lab_js, self.sen_list)
 
     def clean_data_machineid(self, ):
         '''
@@ -299,7 +294,7 @@ def lab_okng(v, v_range):
         return 1
     return 0
 
-def number33_thick14lab(membrane, evt_pair, number33_thicklab_js, num_evt12, k=4):
+def number33_thick10lab(membrane, evt_pair, number33_thicklab_js, num_evt12, ind=4):
     '''
 
     处理 膜色数据.xlsx, 把33321043002编号和膜色曲线关联起来,
@@ -308,17 +303,21 @@ def number33_thick14lab(membrane, evt_pair, number33_thicklab_js, num_evt12, k=4
     :param  membrane: 膜色数据.xlsx
     :param  evt_pair  number33, evt1, evt2, thick1, thick2
     :param  num_evt12 number: evt1, evt2
-    :param  k =4 k代表取的镜片层数, 默认下第四层
+    :param  ind =4 k代表取的镜片层数, 默认下第四层
     :return:
 
     '''
     num_evt12_data = dict()
-    # number33_thicklab {number33: [thick14, lab]}
     number33_thicklab = dict()
-    # number33, evt1,evt2,thick14
+    # number33,evt1,evt2,thick7背,thick7正
     number33_evt_pair_thick14 = open(evt_pair, 'r').readlines()
     for line in number33_evt_pair_thick14:
-        thick14 = ''.join(i+',' for i in line[:-1].split(',')[3:-1])
+        thick14 = line[:-1].split(',')[3:-1]
+        # 剔除不可调的2,7层
+        thick14.pop()
+        thick14.pop(1)
+        thick14.pop(5)
+        thick14.pop(6)
         number33_thicklab[line.split(',')[0]] = [thick14, []]
         num_evt12_data[line.split(',')[0]] = [line.split(',')[1], line.split(',')[2]]
 
@@ -347,7 +346,7 @@ def number33_thick14lab(membrane, evt_pair, number33_thicklab_js, num_evt12, k=4
         if number33_cur in number33_thicklab:
             number_lab_index[number33_cur] = number_lab_index.get(number33_cur, 0) + 1
             # 我们取第k层的膜色曲线为基准
-            if number_lab_index[number33_cur] == k:
+            if number_lab_index[number33_cur] == ind:
                 tmp = data.row_values(i)[lab_index1: lab_index2 + 1]
                 # 剔除lab曲线少于81维的lab数据
                 tmp = [i for i in tmp if i != '']
@@ -362,13 +361,17 @@ def number33_thick14lab(membrane, evt_pair, number33_thicklab_js, num_evt12, k=4
     oks = 0
     for k, v in number_labokng.items():
         oks += v
-    print("第{}层镜片总数: {}, lab曲线ok合格率: {}".format(k, len(number_labokng), oks/len(number_labokng)))
+    print("第{}层镜片总数: {}, lab曲线ok合格率: {}".format(ind, len(number_labokng), oks/len(number_labokng)))
     for num in numbs:
         # 部分lab是 []
         if len(number33_thicklab[num][1]) < 81:
             del number33_thicklab[num]
             del num_evt12_data[num]
-    print('取炉子第四层曲线, 且曲线有81维值的 number33 数目: {}'.format(len(number33_thicklab)))
+    print('取炉子第{}层曲线, 且曲线有81维值的 number33 数目: {}'.format(ind, len(number33_thicklab)))
+
+    for k, v in number33_thicklab.items():
+        assert len(v[0]) == 10
+        assert len(v[1]) == 81
 
     data = json.dumps(number33_thicklab)
     with open(number33_thicklab_js, 'w') as js_file:
@@ -512,7 +515,7 @@ def get_sensor38(sensor_csv, ok_sen_list):
     return f
 
 
-def all_usful_sensor_except_thickness(base_data_dir, num_evt12, thick14_hc3_sensor80_lab_js, feature135_lab_js):
+def all_usful_sensor_except_thickness(base_data_dir, num_evt12, thick10_sensor8step_lab_js, feature135_lab_js):
     '''
     提取, 整合出来已经处理的thickness、rate这四列之外的,有意义19列数据的feature
     :return: 19*2=38维特征
@@ -521,7 +524,7 @@ def all_usful_sensor_except_thickness(base_data_dir, num_evt12, thick14_hc3_sens
     num_evt12_data = json.load(open(num_evt12, 'r'))
     sensor_19 = open(r'info_sensor_nothick.txt', 'r').readlines()[0]
     sensor_19_list = sensor_19.split(',')[:-1]
-    thick14_hc3_sensor80_lab = json.load(open(thick14_hc3_sensor80_lab_js, 'r'))
+    thick14_hc3_sensor80_lab = json.load(open(thick10_sensor8step_lab_js, 'r'))
     number33_feature135 = copy.deepcopy(thick14_hc3_sensor80_lab)
     finall = dict()
     for num, thick14hc3sensor80 in thick14_hc3_sensor80_lab.items():

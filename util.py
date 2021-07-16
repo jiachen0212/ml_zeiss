@@ -219,31 +219,63 @@ def top_k_feature(remed, Y, X, all, n):
 import collections
 def Select_feature(X, Y, k=10):
     '''
-    :param X: numpy
+    :param X: list
     :param Y: list
     :return:
     '''
+    print("有重复的10层膜厚设置数量: {}".format(len(X)))
     import_index = [0, 5, 12, 52, 74, 80]
+    print("特征筛选前的特征维数: {}".format(len(X[0])))
 
-    # 对17层膜厚+耗材之后的121维特征做重要性筛选
-    thicknesshc = np.array([a[:17] for a in X])
-    X = [a[17:] for a in X]
+    thicknesshc = np.array([a[:10] for a in X])
+
+    # model1的x和y
+    model1_x = [a[:10] for a in X]
+    res_x = [a[10:] for a in X]
+    model1_y = []
+
+    X = [a[10:] for a in X]
     X = np.array(X)
     scale = StandardScaler(with_mean=True, with_std=True)
     X = scale.fit_transform(X)
-    X[np.isnan(X)] = 0.0
-    # sklearn 实现特征构造
-    # X = PolynomialFeatures(degree=2).fit_transform(X)
+
     all = []
     for i in import_index:
-        # 每个频段选top20
         top_k_feature(i, Y, X, all, n=k)
     print(collections.Counter(all))
     slim_feature = list(set(all))
     print(slim_feature)
+    f = open(r'./Select_feature.txt', 'w')
+    for a in slim_feature:
+        f.write(str(a)+',')
+
     print("特征筛选后的特征维度: {}".format(len(slim_feature)))
+
+    # chenjia 手动选择所有的std特征
+    slim_feature = [1+i*2 for i in range(16)]
+    print(slim_feature)
+
+    for y in res_x:
+        single_y = []
+        for ind in slim_feature:
+            single_y.append(y[ind])
+        model1_y.append(single_y)
+
+    thick10_sensor8stepfeature = dict()
+    for i in range(len(model1_x)):
+        key = ''.join(str(a)+',' for a in model1_x[i])
+        # 加一个索引数值, 避免key重复value被覆盖更新.
+        key += str(i)
+        thick10_sensor8stepfeature[key] = model1_y[i]
+    # print("无重复的10层膜厚设置数量: {}".format(len(thick10_sensor8stepfeature)))
+    print(len(thick10_sensor8stepfeature))
+
+    js = json.dumps(thick10_sensor8stepfeature)
+    with open(r'./thick10_sensor16.json', 'w') as js_:
+        js_.write(js)
+
     X_slim = thicknesshc
-    X_slim = None   # 不要前面17层膜厚+耗材信息
+    X_slim = None
     for ind in slim_feature:
         if X_slim is not None:
             tmp = np.reshape(X[:, ind], (-1, 1))
@@ -274,30 +306,32 @@ def weighted_mse(lab):
 
 if __name__ == "__main__":
     all_data = json.load(open(r'D:\work\project\卡尔蔡司AR镀膜\第三批\0705\thick14hc3sensor64_lab.json', 'r'))
-    f = json.load(open(r'./little_ng.json', 'r'))
+    f = json.load(open(r'./large_ng.json', 'r'))
+    selected_f = open(r'./Select_feature.txt', 'r').readlines()[0]
+    seleted = [int(i) for i in selected_f.split(',')[:-1]]
+    # seleted = [1+i*2 for i in range(16)]
     large_ng = dict()
     nums = list(f.keys())
     for num, v in all_data.items():
         if num in nums:
             large_ng[num] = v
-
     large_ng_lab = dict()
-    f16_33 = dict()
-    seleted = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    for num, f49_lab in large_ng.items():
-        f16 = []
-        f32 = (f49_lab[0]).split(',')[17:-1]
-        lab = f49_lab[1]
+    f_seleted_33 = dict()
+    for num, f_lab in large_ng.items():
+        f = []
+        f32 = f_lab[0].split(',')[10:-1]
+        assert len(f32) == 32
         for ind in seleted:
-            f16.append(f32[ind])
-        f16 = ''.join(i+',' for i in f16)
-        large_ng_lab[f16] = lab
-        f16_33[f16] = num
+            f.append(f32[ind])
+        print(len(f))
+        f_str = ''.join(i+',' for i in f)
+        large_ng_lab[f_str] = f_lab[1]
+        f_seleted_33[f_str] = num
 
     data = json.dumps(large_ng_lab)
-    with open('./f16lab_little.json', 'w') as js_file:
+    with open('./f16lab.json', 'w') as js_file:
         js_file.write(data)
 
-    data = json.dumps(f16_33)
-    with open('./f1633_little.json', 'w') as js_file:
+    data = json.dumps(f_seleted_33)
+    with open('./f1633.json', 'w') as js_file:
         js_file.write(data)

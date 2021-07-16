@@ -8,11 +8,12 @@ import torch.optim as optimizers
 from sklearn import metrics
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-
+import torch.nn as nn
 from data_load import DataLoader
 from data_post_process import data_post_process
 from mlp_torch import MLP
 from utils.my_mse_loss import my_mse_loss
+from utils.my_mse_loss import my_mse_loss1
 # 衡量lab曲线与标准曲线的误差/相似度
 from util import weighted_mse
 import matplotlib.pyplot as plt
@@ -32,7 +33,7 @@ def get_important_x():
     for n in a:
         weights[nms.index(n)] = 2
     return weights
-    return weights
+
 
 def mlp_fun(test_x, test_y, train_x, train_y):
     # mlp regression
@@ -48,9 +49,11 @@ def mlp_fun(test_x, test_y, train_x, train_y):
 
 
 def compute_loss(t, y):
-    # return nn.MSELoss()(y, t)
     return my_mse_loss()(y, t)
 
+def compute_loss1(t, y):
+    return my_mse_loss1()(y, t)
+    # return nn.MSELoss()(y, t)
 
 def show_y_pred(y, gt_y=None, epo=None, best=None, flag='eval'):
     sample_num, dims = y.shape
@@ -80,46 +83,73 @@ def plot_loss(loss):
     plt.show()
 
 
-def generate_data(data_part1, file1, file2, process_data, base_data_dir, CC_dir, CX_dir, thick14_hc3_sensor16_lab_js,
-                  thick14_hc3_sensor80_lab_js, feature135_lab_js, thick14_lab_js, flag=3):  # flag=0,默认选最新最多的特征
 
-    # 可备选的,使用的json数据,分别有: 135, 33, 97 dims-feature
-    X_list = [full_135feature_js, feature135_lab_js, thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, thick14_lab_js]
+def remove2and7(number_thick_lab):
+    thick10_lab = dict()
+    X, Y = [], []
+    for number33, flab in number_thick_lab.items():
+        assert len(flab[0].split(',')) == 18
+        Y.append(flab[1])
+        X.append(flab[0])
+        # 耗材和最后的空格
+    X = [i.split(',')[:-4] for i in X]
+    # 剔除不能调整的第二,七层
+    for x in X:
+        x.pop()
+        x.pop(1)
+        x.pop(5)
+        x.pop(6)
+    for i in range(len(X)):
+        thick10_lab[''.join(i+',' for i in X[i])] = Y[i]
+    data = json.dumps(thick10_lab)
+    with open('./thick10lab.json', 'w') as js_file:
+        js_file.write(data)
+    return X, Y
+
+def generate_data(data_part1, file1, file2, process_data, base_data_dir, CC_dir, CX_dir, thick14_hc3_sensor16_lab_js,
+                  number33_thick10sensor8step_lab_js, feature135_lab_js, thick10_lab_js, flag=0):  # flag=0,默认选最新最多的特征
+
+    X_list = [number33_thick10sensor8step_lab_js, thick10_lab_js]
     tmp = X_list[flag]
-    # tmp = r'./f16lab.json'   # r'./f16lab_little.json'
     if not os.path.exists(tmp):
         data_post_process(file1, file2, process_data, base_data_dir, CC_dir, CX_dir,
-                          thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, thick14_lab_js).run()
+                          thick14_hc3_sensor16_lab_js, number33_thick10sensor8step_lab_js, thick10_lab_js).run()
         print("data process done!")
     else:
         print("data has already processed! start mlp！！!")
     with open(tmp, encoding="utf-8") as reader:
-        thicknesshc_curve = json.load(reader)
-    Y = []
-    X = []
-    for f16, lab in thicknesshc_curve.items():
-        # train model
-        Y.append(lab[1])
-        X.append(lab[0])
-        # X.append(f16)
-        # Y.append(lab)
+        f_lab = json.load(reader)
+
+    # X, Y = remove2and7(thicknesshc_curve)
+    X, Y = [], []
+    for number33, thicksensor_lab in f_lab.items():
+        x = thicksensor_lab[0].split(',')[:-1]
+        assert len(x) == 42
+        X.append(x)
+        Y.append(thicksensor_lab[1])
+    X = [[float(i) for i in x] for x in X]
     Y = [[float(i) for i in a] for a in Y]
-    X = [i.split(',')[:-1] for i in X]
-    for i in range(len(X)):
-        if len(X[i]) != len(X[0]):
-            Y.pop(i)
-    X = [i for i in X if len(i) == len(X[0])]
 
-    # train model
-    k = 10
-    X = Select_feature(X, Y, k=k)
+    # 剔除坏掉的样本
+    for i in range(len(Y)):
+        if np.mean(Y[i]) < 1:
+            X.pop(i)
+    Y = [a for a in Y if np.mean(a) >= 1]
 
-    X = [[float(i) for i in a] for a in X]
-    X = np.array(X)
-    Y = np.array(Y)
-    print("data_size: {}, {}".format(X.shape, Y.shape))
     return X, Y
 
+
+
+def generate_data_test():
+    X, Y = [], []
+    f = json.load(open('./f16lab.json', 'r'))
+    for f17, lab in f.items():
+        X.append([float(n) for n in f17.split(',')[:-1]])
+        Y.append(lab)
+    X = np.array(X)
+    Y = np.array(Y)
+
+    return X, Y
 
 
 # def compare_res(best):
@@ -172,95 +202,123 @@ def compare_res(best):
 
 
 
-def run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, all_data, epochs, best, is_train=True,
-        optimizer=None):
-    if is_train:
-        loss_list = []
-        for epoch in range(epochs):
-            train_loss = 0
-            # print('-' * 10, 'epoch: {}'.format(epoch + 1), '-' * 10)
-            for ii, (data, label) in enumerate(train_dataloader):
-                input = Variable(data, requires_grad=False)
-                target = Variable(label)
-                optimizer.zero_grad()
-                score = model(input)
-                loss = compute_loss(score, target)
-                # print('-' * 10, 'epoch {} loss: {}'.format(epoch, loss), '-' * 10)
-                loss.backward()
-                optimizer.step()
-                train_loss += loss.item()
-            train_loss /= len(train_dataloader)
-            loss_list.append(train_loss)
-            if (epoch + 1) % 1000 == 0:
+def run_train(X, Y, hiden_dim, output_dim, epochs):
+    # 特征筛选
+    k = 10
+    X = Select_feature(X, Y, k=k)
+
+    X = np.array(X)
+    Y = np.array(Y)
+    print("data_size: {}, {}".format(X.shape, Y.shape))
+
+    batch_size = X.shape[0]
+    input_dim = X.shape[-1]
+
+    # 数据规整化
+    scale = StandardScaler(with_mean=True, with_std=True)
+    # X = scale.inverse_transform(X)
+    X_ = scale.fit_transform(X)
+    train_x, test_x, train_y, test_y = train_test_split(X_, Y, test_size=0.25, random_state=4)
+    print("train size: {}".format(train_x.shape[0]))
+    print("validation size: {}".format(test_x.shape[0]))
+    train_dataloader = DataLoader((train_x, train_y), batch_size=batch_size, batch_first=False, device=device)
+    val_dataloader = DataLoader((test_x, test_y), batch_size=batch_size, batch_first=False, device=device)
+    model = MLP(input_dim, hiden_dim, output_dim).to(device)
+    print(model)
+    optimizer = optimizers.Adam(model.parameters(),
+                                      lr=0.001,
+                                      betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)  # L2正则
+
+    loss_list = []
+    for epoch in range(epochs):
+        train_loss = 0
+        # print('-' * 10, 'epoch: {}'.format(epoch + 1), '-' * 10)
+        for ii, (data, label) in enumerate(train_dataloader):
+            input = Variable(data, requires_grad=False)
+            target = Variable(label)
+            optimizer.zero_grad()
+            score = model(input)
+            loss = compute_loss(score, target)
+            # print('-' * 10, 'epoch {} loss: {}'.format(epoch, loss), '-' * 10)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+        train_loss /= len(train_dataloader)
+        loss_list.append(train_loss)
+        if (epoch + 1) % 1000 == 0:
+            model.eval()
+            for ii, (input, gt) in enumerate(val_dataloader):
+                print(input.shape, 'val')
                 model.eval()
-                for ii, (input, gt) in enumerate(val_dataloader):
-                    print(input.shape, 'val')
-                    model.eval()
-                    pred = model(input)
-                    y_pred = pred.detach().numpy()
-                    show_y_pred(y_pred, gt, epo=epoch, flag='validation')
+                pred = model(input)
+                y_pred = pred.detach().numpy()
+                show_y_pred(y_pred, gt, epo=epoch, flag='validation')
+        if epoch == epochs - 1:
+            model.eval()
+            for ii, (input, org) in enumerate(train_dataloader):
+                model.eval()
+                pred = model(input)
+                y = pred.detach().numpy()
+                show_y_pred(y, org, epo=epoch, flag='train')
+                np.save(r'./step1_y.npy', y)
+    plot_loss(loss_list)
+    torch.save(model.state_dict(), "./mlp.pth")
+
+def run_test(X, Y, hiden_dim, output_dim, epochs):
+    input_dim = X.shape[1]
+    model = MLP(input_dim, hiden_dim, output_dim).to(device)
+    model.load_state_dict(torch.load("./mlp.pth"))
+
+    scale = StandardScaler(with_mean=True, with_std=True)
+    X_ = scale.fit_transform(X)
+    all_data = DataLoader((X_, Y), batch_size=X_.shape[0], batch_first=False, device=device)
+
+    for index, p in enumerate(model.parameters()):
+        p.requires_grad = False
+
+    loss_list = []
+    for epoch in range(epochs):
+        train_loss = 0
+        for ii, (data, label) in enumerate(all_data):
+            if epoch == 0:
+                model.eval()
+                preds = model(data)
+                y_pred = preds.detach().numpy()
+                x_data = scale.inverse_transform(data.detach().numpy())
+                np.save(r'./step1_y.npy', y_pred)
+                np.save(r'./start_x.npy', x_data)
+                np.save(r'./start_lab.npy', label)
+            # 用标准曲线作为target,逼近膜厚去拟合最佳曲线
+            target = best * data.shape[0]
+            target = np.array(target)
+            target = np.reshape(target, (data.shape[0], -1))
+            target = Variable(torch.from_numpy(target).float())
+
+            data = Variable(data, requires_grad=True)
+            optimizer = optimizers.Adam({data},
+                                        lr=0.3,
+                                        betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)
+            optimizer.zero_grad()
+            score = model(data)
+            loss = compute_loss1(score, target)
+            loss.backward()
+            # print(data.grad[0])
+            optimizer.step()
+            train_loss += loss.item()
             if epoch == epochs - 1:
                 model.eval()
-                for ii, (input, org) in enumerate(train_dataloader):
-                    model.eval()
-                    pred = model(input)
-                    y = pred.detach().numpy()
-                    show_y_pred(y, org, epo=epoch, flag='train')
-                    np.save(r'./step1_y.npy', y)
-        plot_loss(loss_list)
-        torch.save(model.state_dict(), "./mlp.pth")
-    else:
-        model.load_state_dict(torch.load("./mlp.pth"))
-        # params = list(model.named_parameters())
-        # print(params[0])   # bn2 + fc2 * 3 = 8
-        # 冻结mlp内部参数
-        for index, p in enumerate(model.parameters()):
-            p.requires_grad = False
-        loss_list = []
-        for epoch in range(epochs):
-            train_loss = 0
-            for ii, (data, label) in enumerate(all_data):
-                if epoch == 0:
-                    model.eval()
-                    preds = model(data)
-                    y_pred = preds.detach().numpy()
-                    x_data = scale.inverse_transform(data.detach().numpy())
-                    np.save(r'./step1_y.npy', y_pred)
-                    np.save(r'./start_x.npy', x_data)
-                    np.save(r'./start_lab.npy', label)
-                # 用标准曲线作为target,逼近膜厚去拟合最佳曲线
-                target = best * data.shape[0]
-                target = np.array(target)
-                target = np.reshape(target, (data.shape[0], -1))
-                target = Variable(torch.from_numpy(target).float())
-
-                data = Variable(data, requires_grad=True)
-                optimizer = optimizers.Adam({data},
-                                            # lr=1e-3,
-                                            lr=0.2,
-                                            # lr=5e-3,
-                                            betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)
-                optimizer.zero_grad()
-                score = model(data)
-                loss = compute_loss(score, target)
-                loss.backward()
-                # print(data.grad[0])
-                optimizer.step()
-                train_loss += loss.item()
-                if epoch == epochs - 1:
-                    model.eval()
-                    preds = model(data)
-                    y_pred = preds.detach().numpy()
-                    x_data = scale.inverse_transform(data.detach().numpy())
-                    np.save(r'./step2_y.npy', y_pred)
-                    np.save(r'./modified_x.npy', x_data)
-                    np.save(r'./modified_lab.npy', label)
-            train_loss /= len(train_dataloader)
-            loss_list.append(train_loss)
-            # print('-' * 10, 'loss: {}'.format(train_loss), '-' * 10)
-        plot_loss(loss_list)
-        print(loss_list.index(min(loss_list)))  # 返回fine-tune阶段min_loss出现的epoch
-        print(max(loss_list), min(loss_list))
+                preds = model(data)
+                y_pred = preds.detach().numpy()
+                x_data = scale.inverse_transform(data.detach().numpy())
+                np.save(r'./step2_y.npy', y_pred)
+                np.save(r'./modified_x.npy', x_data)
+                np.save(r'./modified_lab.npy', label)
+        train_loss /= len(all_data)
+        loss_list.append(train_loss)
+        # print('-' * 10, 'loss: {}'.format(train_loss), '-' * 10)
+    plot_loss(loss_list)
+    print(loss_list.index(min(loss_list)))  # 返回fine-tune阶段min_loss出现的epoch
+    print(max(loss_list), min(loss_list))
 
 
 def data_info(X, Y):
@@ -352,7 +410,7 @@ if __name__ == "__main__":
     import_index = x.index(750)
 
     # 1train or 0modified_thickness
-    flag = 1
+    flag = 0
     # get_important_x()
 
     # 标准lab曲线
@@ -390,54 +448,30 @@ if __name__ == "__main__":
     thick14_hc3_sensor16_lab_js = os.path.join(root_dir, sub_dir, 'thick14hc3sensor16_lab.json')
     # 加入64维 8step sensor时序特征
     csv_dict_js = os.path.join(root_dir, sub_dir, 'evtname_sensor_name_value.json')
-    thick14_hc3_sensor80_lab_js = os.path.join(root_dir, sub_dir, 'thick14hc3sensor64_lab.json')
+    number33_thick10sensor8step_lab_js = os.path.join(root_dir, sub_dir, 'thick14hc3sensor64_lab.json')
     # 再加入19列有意义数据的38维特征
     feature135_lab_js = os.path.join(root_dir, sub_dir, 'feature135_lab.json')
 
     # merge two_part_data_json
     data_part1 = os.path.join(part_root_dir1, 'all.json')
     full_135feature_js = os.path.join(root_dir, sub_dir, 'all.json')
-
-    # 0712
-    number33_thicklab_js = r'./number33_thicklab.json'
-
-    X, Y = generate_data(data_part1, file1, file2, process_data, base_data_dir, CC_dir, CX_dir,
-                                       thick14_hc3_sensor16_lab_js, thick14_hc3_sensor80_lab_js, feature135_lab_js, number33_thicklab_js)
-
-    batch_size = X.shape[0]
-    input_dim = X.shape[-1]
-    output_dim = Y.shape[-1]
+    number33_thicklab_js = r'./number33_thick10lab.json'
     hiden_dim = 80
     epochs_train = 3000
-    # 调整膜厚值
-    epochs_finetune = 1000
-    # 数据规整化
-    scale = StandardScaler(with_mean=True, with_std=True)
-    # 注意后面观察膜厚的变化,需要用到它的逆操作: X = scale.inverse_transform(X)
-    X_ = scale.fit_transform(X)
-    train_x, test_x, train_y, test_y = train_test_split(X_, Y, test_size=0.32, random_state=4)
-    print("train size: {}".format(train_x.shape[0]))
-    print("validation size: {}".format(test_x.shape[0]))
-    train_dataloader = DataLoader((train_x, train_y), batch_size=batch_size, batch_first=False, device=device)
-    val_dataloader = DataLoader((test_x, test_y), batch_size=batch_size, batch_first=False, device=device)
-    all_data = DataLoader((X_, Y), batch_size=batch_size, batch_first=False, device=device)
-    model = MLP(input_dim, hiden_dim, output_dim).to(device)
-    print(model)
-    optimizer_train = optimizers.Adam(model.parameters(),
-                                      lr=0.001,
-                                      betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)  # L2正则
+    epochs_test = 1000
+
     if flag == 1:
-        run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, all_data, epochs_train, best,
-            optimizer=optimizer_train)
+        X, Y = generate_data(data_part1, file1, file2, process_data, base_data_dir, CC_dir, CX_dir,
+                             thick14_hc3_sensor16_lab_js, number33_thick10sensor8step_lab_js, feature135_lab_js,
+                             number33_thicklab_js)
+
+        output_dim = len(Y[0])
+        run_train(X, Y, hiden_dim, output_dim, epochs_train)
+
     elif flag == 0:
-        run(DataLoader, scale, train_x, train_y, model, train_dataloader, val_dataloader, all_data, epochs_finetune, best,
-            is_train=False)
+        X, Y = generate_data_test()
+        output_dim = Y.shape[1]
+        run_test(X, Y, hiden_dim, output_dim, epochs_test)
         compare_res(best)
-        # 怎么剔除异常点? 怎么使得每一个样本都刚好的逼近标准曲线？[膜厚设置值-实测>2*rate,考虑剔除]
         # data_info(X, Y)
-    elif flag == 2:
-        start = np.load(r'./start_x.npy')
-        modified = np.load(r'modified_x.npy')
-        print(start[0][:14])
-        print(modified[0][:14])
 
