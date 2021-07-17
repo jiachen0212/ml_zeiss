@@ -57,8 +57,8 @@ class data_post_process():
         self.face = r'背面'
         self.number33_thick14hc3lab_js = r'./number33_thickhc.json'
         self.num_evt12 = r'./num_evt12.json'
-        # self.sen_list = ['ACT_O1_QCMS_THICKNESS_CH1', 'ACT_O1_QCMS_RATE_CH1']
-        self.sen_list = ['STAT_LT_CRYSTAL_CH1']
+        self.sen_list = ['ACT_O1_QCMS_THICKNESS_CH1']
+        # self.sen_list = ['STAT_LT_CRYSTAL_CH1']
         self.csv_dict_js = r'./evtname_sensor_name_value.json'
 
 

@@ -19,12 +19,16 @@ class MLP(nn.Module):
 
         self.l1 = nn.Linear(input_dim, hidden_dim)
         self.a1 = nn.ReLU()
-        self.l2 = nn.Linear(hidden_dim, output_dim)
+        self.l2 = nn.Linear(hidden_dim, hidden_dim)
         self.a2 = nn.ReLU()
-        self.l3 = nn.Linear(hidden_dim, output_dim)
+        self.l3 = nn.Linear(hidden_dim, hidden_dim)
         self.a3 = nn.ReLU()
+        self.l4 = nn.Linear(hidden_dim, hidden_dim)
+        self.a4 = nn.ReLU()
+        self.l5 = nn.Linear(hidden_dim, output_dim)
+        self.a5 = nn.ReLU()
 
-        self.layers = [self.l1, self.a1, self.l2, self.a2]
+        self.layers = [self.l1, self.a1, self.l2, self.a2, self.l3, self.a3, self.l4, self.a4, self.l5, self.a5]
 
     def forward(self, x):
         for index, layer in enumerate(self.layers):
@@ -33,6 +37,7 @@ class MLP(nn.Module):
 
 def compute_loss(t, y):
     return my_mse_loss2()(y, t)
+    # return nn.MSELoss()(y, t)
 
 
 def plot_loss(loss):
@@ -45,13 +50,13 @@ def plot_loss(loss):
 
 
 
-def show_y_pred(y, gt_y=None, epo=None, flag='train'):
-    sample_num, dims = y.shape
+def show_y_pred(inds, y, gt_y=None, epo=None, flag='train'):
+    _, dims = y.shape
     plt.title('{} epoch {}'.format(flag, epo + 1))
     plt.xlabel("iter")
     plt.ylabel("sensor value")
     x = [i for i in range(dims)]
-    for i in range(sample_num):
+    for i in inds:
         single_y = y[i, :]
         single_gt_y = gt_y[i, :]
         if i == 0:
@@ -64,6 +69,34 @@ def show_y_pred(y, gt_y=None, epo=None, flag='train'):
     plt.show()
 
 
+
+def show_all_data(X, data):
+    '''
+    std比较大的两个index: 0 8
+    通过与mean值的大小比较划分开数据,得到不那么分散的几个数据群..
+    数据不那么分散不代表机器的隐含状态接近,属于统一part...
+    '''
+    part08_1 = []
+    part08_2 = []
+    mean_data = np.mean(data, axis=0)
+    # diff_data = data - mean_data
+    # diff_data = np.array([[abs(i) for i in a] for a in diff_data])
+    # diff_mean = np.mean(diff_data, axis=0)
+    x = [i for i in range(data.shape[1])]
+    for i in range(data.shape[0]):
+        if data[i][8] < mean_data[8]:
+            if data[i][0] < mean_data[0]/2:
+                # plt.plot(x, data[i], color='pink')
+                part08_1.append([X[i], data[i]])
+            elif mean_data[0]/2 < data[i][0] < mean_data[0]:
+                plt.plot(x, data[i], color='black')
+                part08_2.append([X[i], data[i]])
+        # else:
+        #     plt.plot(x, data[i], color='black')
+    plt.legend()
+    plt.show()
+
+
 data = json.load(open(r'./thick10_sensor16.json', 'r'))
 X = []
 Y = []
@@ -71,22 +104,20 @@ thickhc_lab = dict()
 for k, v in data.items():
     X.append([float(i) for i in k.split(',')[:-1]])
     Y.append(v)
+    if len(Y) == 200:
+        break
     assert len(k.split(',')[:-1]) == 10
     assert len(v) == 16
 
 X = np.array(X)
 Y = np.array(Y)
 print(X.shape, Y.shape)
+# show_all_data(X, Y)
 
 print("before scale: X: {}".format(X[0]))
 scale = StandardScaler(with_mean=True, with_std=True)
 X = scale.fit_transform(X)    # X = scale.inverse_transform(X)
 print("after scale: X: {}".format(X[0]))
-
-# print("before scale: Y: {}".format(Y[0]))
-# scale1 = StandardScaler(with_mean=True, with_std=True)
-# Y = scale1.fit_transform(Y)
-# print("after scale: Y: {}".format(Y[0]))
 
 train_x, test_x, train_y, test_y = train_test_split(X, Y, test_size=0.28, random_state=4)
 print("train size: {}".format(train_x.shape[0]))
@@ -94,9 +125,9 @@ print("validation size: {}".format(test_x.shape[0]))
 
 batch_size = X.shape[0]
 input_dim = X.shape[1]
-hiden_dim = 100
+hiden_dim = 20
 output_dim = Y.shape[1]
-epochs = 500
+epochs = 1000
 step2_epochs = 400
 model = MLP(input_dim, hiden_dim, output_dim).to(device)
 print(model)
@@ -116,7 +147,7 @@ if flag == 1:
             target = Variable(label)
             optimizer.zero_grad()
             score = model(input)
-            loss = compute_loss(score, target)
+            loss, minloss_index = compute_loss(score, target)
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
@@ -124,21 +155,27 @@ if flag == 1:
         # print("epoch{}, loss: {}".format(epoch, train_loss))
         loss_list.append(train_loss)
         if (epoch + 1) % 100 == 0:
-            for (data, label) in train_dataloader:
-                score = model(data).detach().numpy()
-                # print(label[0])
-                # print(score[0])
-                show_y_pred(score, gt_y=label, epo=epoch, flag='train')
             for (data, label) in validation_dataloader:
                 model.eval()
                 pred = model(data)
-                loss = compute_loss(pred, label)
+                loss, minloss_index = compute_loss(pred, label)
                 score = pred.detach().numpy()
-                # print("pred: {}".format(pred[0]))
                 print("validation loss: {}".format(loss))
-                show_y_pred(score, gt_y=label, epo=epoch, flag='validation')
+                print(len(minloss_index), minloss_index)
+                show_y_pred(minloss_index, score, gt_y=label, epo=epoch, flag='validation')
+        if epoch == epochs - 1:
+            for (data, label) in train_dataloader:
+                model.eval()
+                pred = model(data)
+                loss, minloss_index = compute_loss(pred, label)
+                score = pred.detach().numpy()
+                show_y_pred(minloss_index, score, gt_y=label, epo=epoch, flag='train')
     torch.save(model.state_dict(), "./thickhc2sensor.pth")
     plot_loss(loss_list)
+
+
+'''
+膜厚微调阶段,可先不管
 
 elif flag == 0:
     # finetune data
@@ -178,7 +215,7 @@ elif flag == 0:
                                         betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)
             optimizer.zero_grad()
             score = model(data)
-            loss = compute_loss(score, label)
+            loss, minloss_index = compute_loss(score, label)
             loss.backward()
             # print(data.grad[0])
             optimizer.step()
@@ -196,4 +233,4 @@ elif flag == 0:
         # print('-' * 10, 'loss: {}'.format(train_loss), '-' * 10)
     plot_loss(loss_list)
 
-
+'''

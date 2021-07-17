@@ -106,13 +106,13 @@ for start_num in start_num33:
     ind_.append(end_num33.index(start_num))
 
 diff_all = []
-x = [i for i in range(15)]
 for i in range(20):
     s = start[i]
+    ll = len(s)
     m = modify[ind_[i]]
-    diff = [m[i]-s[i] for i in range(15)]
-    diff_ = [abs((m[i]-s[i])/(s[i]+1e-5)) for i in range(15)]
-    print([i for i in range(1, 15) if diff_[i] > 0.01])
-    print([diff_[i]*100 for i in range(1, 15)])
+    diff = [m[i]-s[i] for i in range(ll)]
+    diff_ = [100*abs((m[i]-s[i])/(s[i]+1e-5)) for i in range(ll)]
+    print([i for i in range(1, ll) if diff_[i] > 1])
+    print([diff_[i] for i in range(1, ll) if diff_[i] > 1])
     diff_all.append(diff)
 

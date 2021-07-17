@@ -56,6 +56,15 @@ class my_mse_loss1(_Loss):
 
 
 
+def topn_sample(diff):
+    diff_sort = np.sort(diff)
+    diff = diff.tolist()
+    res = []
+    for a in diff_sort[:30]:
+        res.append(diff.index(a))
+    return res
+
+
 class my_mse_loss2(_Loss):
     __constants__ = ['reduction']
 
@@ -64,13 +73,19 @@ class my_mse_loss2(_Loss):
 
     def forward(self, input: Tensor, target: Tensor) -> Tensor:
         diff = input - target
+        diff_square = np.square(diff.detach().numpy())
+        diff_square = np.mean(diff_square, axis=1)
+        res = topn_sample(diff_square)
         mse = torch.square(diff)
-        weights = [1]*input.shape[1]
+        # weights = [1,1,1,2,1,1,1,2,2,2,2,2,1,1,1,1]
+        weights = [100]*16
+        weights[2] = 200
+        weights[8] = 200
+        weights[10] = 200
         weights = torch.Tensor(np.array(weights))
         mse *= weights
         mse = torch.mean(mse)
-        return mse
-
+        return mse, res
 
 
 

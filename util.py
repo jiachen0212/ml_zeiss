@@ -244,6 +244,11 @@ def Select_feature(X, Y, k=10):
         top_k_feature(i, Y, X, all, n=k)
     print(collections.Counter(all))
     slim_feature = list(set(all))
+    slim_feature = [i for i in slim_feature if i%2 == 0]
+    no_modify = [4, 20]
+    for i in slim_feature:
+        if i in no_modify:
+            slim_feature.remove(i)
     print(slim_feature)
     f = open(r'./Select_feature.txt', 'w')
     for a in slim_feature:
@@ -251,9 +256,9 @@ def Select_feature(X, Y, k=10):
 
     print("特征筛选后的特征维度: {}".format(len(slim_feature)))
 
-    # chenjia 手动选择所有的std特征
-    slim_feature = [1+i*2 for i in range(16)]
-    print(slim_feature)
+    # # chenjia 手动选择所有的std特征
+    # slim_feature = [1+i*2 for i in range(16)]
+    # print(slim_feature)
 
     for y in res_x:
         single_y = []
@@ -323,7 +328,6 @@ if __name__ == "__main__":
         assert len(f32) == 32
         for ind in seleted:
             f.append(f32[ind])
-        print(len(f))
         f_str = ''.join(i+',' for i in f)
         large_ng_lab[f_str] = f_lab[1]
         f_seleted_33[f_str] = num

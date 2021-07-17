@@ -56,6 +56,11 @@ def compute_loss1(t, y):
     # return nn.MSELoss()(y, t)
 
 def show_y_pred(y, gt_y=None, epo=None, best=None, flag='eval'):
+    best = [5.52, 3.53, 1.97, 1.28, 0.74, 0.7, 0.85, 1.05, 1.23, 1.43, 1.63, 1.82, 1.84, 1.8, 1.75, 1.73, 1.64, 1.49,
+            1.39, 1.31, 1.23, 1.16, 1.03, 0.91, 0.85, 0.86, 0.84, 0.77, 0.71, 0.64, 0.61, 0.61, 0.58, 0.56, 0.53, 0.46,
+            0.46, 0.44, 0.41, 0.43, 0.4, 0.39, 0.36, 0.25, 0.19, 0.17, 0.21, 0.19, 0.17, 0.17, 0.2, 0.2, 0.16, 0.20,
+            0.26, 0.35, 0.41, 0.57, 0.64, 0.71, 0.9, 1.04, 1.17, 1.27, 1.43, 1.56, 1.82, 2.07, 2.4, 2.72, 3.02, 3.33,
+            3.58, 3.87, 3.97, 4.34, 4.57, 4.73, 5.03, 5.45, 5.94]
     sample_num, dims = y.shape
     plt.title('{} epoch {} lab_curve'.format(flag, epo + 1))
     plt.xlabel("Wave-length")
@@ -111,6 +116,7 @@ def generate_data(data_part1, file1, file2, process_data, base_data_dir, CC_dir,
 
     X_list = [number33_thick10sensor8step_lab_js, thick10_lab_js]
     tmp = X_list[flag]
+    # tmp = r'D:\work\project\卡尔蔡司AR镀膜\第三批\0705\thick14hc3sensor64_lab_thick10sensor32.json'
     if not os.path.exists(tmp):
         data_post_process(file1, file2, process_data, base_data_dir, CC_dir, CX_dir,
                           thick14_hc3_sensor16_lab_js, number33_thick10sensor8step_lab_js, thick10_lab_js).run()
@@ -267,6 +273,7 @@ def run_train(X, Y, hiden_dim, output_dim, epochs):
 def run_test(X, Y, hiden_dim, output_dim, epochs):
     input_dim = X.shape[1]
     model = MLP(input_dim, hiden_dim, output_dim).to(device)
+    print(model)
     model.load_state_dict(torch.load("./mlp.pth"))
 
     scale = StandardScaler(with_mean=True, with_std=True)
@@ -410,7 +417,7 @@ if __name__ == "__main__":
     import_index = x.index(750)
 
     # 1train or 0modified_thickness
-    flag = 0
+    flag = 1
     # get_important_x()
 
     # 标准lab曲线
