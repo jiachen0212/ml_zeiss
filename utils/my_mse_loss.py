@@ -56,11 +56,11 @@ class my_mse_loss1(_Loss):
 
 
 
-def topn_sample(diff):
+def topn_sample(diff, n):
     diff_sort = np.sort(diff)
     diff = diff.tolist()
     res = []
-    for a in diff_sort[:30]:
+    for a in diff_sort[:n]:
         res.append(diff.index(a))
     return res
 
@@ -71,17 +71,13 @@ class my_mse_loss2(_Loss):
     def __init__(self, size_average=None, reduce=None, reduction: str = 'mean') -> None:
         super(my_mse_loss2, self).__init__(size_average, reduce, reduction)
 
-    def forward(self, input: Tensor, target: Tensor) -> Tensor:
+    def forward(self, input: Tensor, target: Tensor, n: int) -> Tensor:
         diff = input - target
         diff_square = np.square(diff.detach().numpy())
         diff_square = np.mean(diff_square, axis=1)
-        res = topn_sample(diff_square)
+        res = topn_sample(diff_square, n)
         mse = torch.square(diff)
-        # weights = [1,1,1,2,1,1,1,2,2,2,2,2,1,1,1,1]
-        weights = [100]*16
-        weights[2] = 200
-        weights[8] = 200
-        weights[10] = 200
+        weights = [1]*4
         weights = torch.Tensor(np.array(weights))
         mse *= weights
         mse = torch.mean(mse)
