@@ -116,7 +116,6 @@ def generate_data(data_part1, file1, file2, process_data, base_data_dir, CC_dir,
 
     X_list = [number33_thick10sensor8step_lab_js, thick10_lab_js]
     tmp = X_list[flag]
-    # tmp = r'D:\work\project\卡尔蔡司AR镀膜\第三批\0705\thick14hc3sensor64_lab_thick10sensor32.json'
     if not os.path.exists(tmp):
         data_post_process(file1, file2, process_data, base_data_dir, CC_dir, CX_dir,
                           thick14_hc3_sensor16_lab_js, number33_thick10sensor8step_lab_js, thick10_lab_js).run()
@@ -130,7 +129,7 @@ def generate_data(data_part1, file1, file2, process_data, base_data_dir, CC_dir,
     X, Y = [], []
     for number33, thicksensor_lab in f_lab.items():
         x = thicksensor_lab[0].split(',')[:-1]
-        assert len(x) == 42
+        assert len(x) == 26
         X.append(x)
         Y.append(thicksensor_lab[1])
     X = [[float(i) for i in x] for x in X]
@@ -190,6 +189,8 @@ def compare_res(best):
     for i in range(sample_num):
         a = y1[i, :]
         b = y2[i, :]
+        print("base lab: L: {}, A: {}, B: {}".format(calculate_Lab(a)[0], calculate_Lab(a)[1], calculate_Lab(a)[2]))
+        print("modified lab: L: {}, A: {}, B: {}".format(calculate_Lab(b)[0], calculate_Lab(b)[1], calculate_Lab(b)[2]))
         mse1.append(weighted_mse(a))
         mse2.append(weighted_mse(b))
         plt.plot(x, a, color='cornflowerblue')
@@ -254,7 +255,6 @@ def run_train(X, Y, hiden_dim, output_dim, epochs):
         if (epoch + 1) % 1000 == 0:
             model.eval()
             for ii, (input, gt) in enumerate(val_dataloader):
-                print(input.shape, 'val')
                 model.eval()
                 pred = model(input)
                 y_pred = pred.detach().numpy()
@@ -303,7 +303,7 @@ def run_test(X, Y, hiden_dim, output_dim, epochs):
 
             data = Variable(data, requires_grad=True)
             optimizer = optimizers.Adam({data},
-                                        lr=0.3,
+                                        lr=0.18,
                                         betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)
             optimizer.zero_grad()
             score = model(data)
@@ -417,7 +417,7 @@ if __name__ == "__main__":
     import_index = x.index(750)
 
     # 1train or 0modified_thickness
-    flag = 1
+    flag = 0
     # get_important_x()
 
     # 标准lab曲线

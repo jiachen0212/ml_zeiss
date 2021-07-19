@@ -204,7 +204,7 @@ def calculate_Lab(best):
         L = 903.3 * Yyn
     a = 500 * (fXxn - fYyn)
     b = 200 * (fYyn - fZzn)
-    print("Lab value: L: {}, a: {}, b: {}".format(L, a, b))
+    # print("Lab value: L: {}, a: {}, b: {}".format(L, a, b))
     return L, a, b
 
 
@@ -235,6 +235,7 @@ def Select_feature(X, Y, k=10):
     model1_y = []
 
     X = [a[10:] for a in X]
+
     X = np.array(X)
     scale = StandardScaler(with_mean=True, with_std=True)
     X = scale.fit_transform(X)
@@ -244,11 +245,14 @@ def Select_feature(X, Y, k=10):
         top_k_feature(i, Y, X, all, n=k)
     print(collections.Counter(all))
     slim_feature = list(set(all))
-    slim_feature = [i for i in slim_feature if i%2 == 0]
-    no_modify = [4, 20]
-    for i in slim_feature:
-        if i in no_modify:
-            slim_feature.remove(i)
+
+    # 需要的话,删除第2 7 层和std特征
+    # slim_feature = [i for i in slim_feature if i%2 == 0]
+    # no_modify = [4, 20]
+    # for i in slim_feature:
+    #     if i in no_modify:
+    #         slim_feature.remove(i)
+
     print(slim_feature)
     f = open(r'./Select_feature.txt', 'w')
     for a in slim_feature:
@@ -256,7 +260,7 @@ def Select_feature(X, Y, k=10):
 
     print("特征筛选后的特征维度: {}".format(len(slim_feature)))
 
-    # # chenjia 手动选择所有的std特征
+    # 手动选择所有的std特征
     # slim_feature = [1+i*2 for i in range(16)]
     # print(slim_feature)
 
@@ -314,7 +318,6 @@ if __name__ == "__main__":
     f = json.load(open(r'./large_ng.json', 'r'))
     selected_f = open(r'./Select_feature.txt', 'r').readlines()[0]
     seleted = [int(i) for i in selected_f.split(',')[:-1]]
-    # seleted = [1+i*2 for i in range(16)]
     large_ng = dict()
     nums = list(f.keys())
     for num, v in all_data.items():
@@ -325,7 +328,7 @@ if __name__ == "__main__":
     for num, f_lab in large_ng.items():
         f = []
         f32 = f_lab[0].split(',')[10:-1]
-        assert len(f32) == 32
+        assert len(f32) == 16
         for ind in seleted:
             f.append(f32[ind])
         f_str = ''.join(i+',' for i in f)

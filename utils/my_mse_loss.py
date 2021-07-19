@@ -85,6 +85,21 @@ class my_mse_loss2(_Loss):
 
 
 
+class my_mse_loss3(_Loss):
+    __constants__ = ['reduction']
+
+    def __init__(self, size_average=None, reduce=None, reduction: str = 'mean') -> None:
+        super(my_mse_loss3, self).__init__(size_average, reduce, reduction)
+
+    def forward(self, input: Tensor, target: Tensor) -> Tensor:
+        diff = input - target
+        mse = torch.square(diff)
+        weights = [2,1,2,1]
+        weights = torch.Tensor(np.array(weights))
+        mse *= weights
+        mse = torch.mean(mse)
+        return mse
+
 # w = [1]*81
 # ind = [0,5,12,52,74,78, 79, 80]
 # for i in ind:

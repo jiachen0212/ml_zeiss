@@ -210,7 +210,7 @@ def times_feature(data, process, evtcc, sen_n):
     # ae2 = tsf.feature_extraction.feature_calculators.augmented_dickey_fuller(ts, [{'attr': 'pvalue'}])
     # f_sensor.append(ae2[0][1])
     assert len(data) != 0
-    f_sensor.append(np.mean(data))
+    # f_sensor.append(np.mean(data))
     f_sensor.append(np.std(data, ddof=1))
     # print(len(data), process, evtcc, data, sen_n)
     # f_sensor.append(max(data))
@@ -261,7 +261,7 @@ def num33_64sensor(csv_dict_js, sub_sen_list, num_evt12_data):
             evt_8steps_sensor_feature = evt_8steps_sensor_feature1 + evt_8steps_sensor_feature1
         else:
             numb33_64sensor[numb33] = ''
-        assert len(evt_8steps_sensor_feature) == 32
+        assert len(evt_8steps_sensor_feature) == 16
         numb33_64sensor[numb33] = ''.join(str(i) + ',' for i in evt_8steps_sensor_feature)
 
     return numb33_64sensor
@@ -285,7 +285,7 @@ def get8step_sensor_feature(n_thickness, num_evt12, base_data_dir, csv_dict_js, 
         sensor64 = numb33_64sensor_dict[num]
         if sensor64:
             new_f = ''.join(i+',' for i in number33_thick10_lab[num][0]) + sensor64
-            assert len(new_f.split(',')) == 43
+            assert len(new_f.split(',')) == 27
             thick10sensor32_lab[num][0] = new_f
         else:
             del thick10sensor32_lab[num]
