@@ -239,11 +239,7 @@ def Select_feature(X, Y, k=10):
     :param Y: list
     :return:
     '''
-    print("有重复的10层膜厚设置数量: {}".format(len(X)))
-    import_index = [0, 5, 12, 52, 74, 80]
-    print("特征筛选前的特征维数: {}".format(len(X[0])))
-
-    thicknesshc = np.array([a[:10] for a in X])
+    import_index = [5, 12, 52, 74, 80]
 
     # model1的x和y
     model1_x = [a[:10] for a in X]
@@ -262,25 +258,11 @@ def Select_feature(X, Y, k=10):
     print(collections.Counter(all))
     slim_feature = list(set(all))
     print(slim_feature)
-    slim_feature = [i for i in slim_feature if i not in [2,7,10,15]]
 
-    # 需要的话,删除第2 7 层和std特征
-    # slim_feature = [i for i in slim_feature if i%2 == 0]
-    # no_modify = [4, 20]
-    # for i in slim_feature:
-    #     if i in no_modify:
-    #         slim_feature.remove(i)
-
-    print(slim_feature)
     f = open(r'./Select_feature.txt', 'w')
     for a in slim_feature:
         f.write(str(a)+',')
-
     print("特征筛选后的特征维度: {}".format(len(slim_feature)))
-
-    # 手动选择所有的std特征
-    # slim_feature = [1+i*2 for i in range(16)]
-    # print(slim_feature)
 
     for y in res_x:
         single_y = []
@@ -294,14 +276,11 @@ def Select_feature(X, Y, k=10):
         # 加一个索引数值, 避免key重复value被覆盖更新.
         key += str(i)
         thick10_sensor8stepfeature[key] = model1_y[i]
-    # print("无重复的10层膜厚设置数量: {}".format(len(thick10_sensor8stepfeature)))
-    print(len(thick10_sensor8stepfeature))
 
     js = json.dumps(thick10_sensor8stepfeature)
     with open(r'./thick10_sensor16.json', 'w') as js_:
         js_.write(js)
 
-    X_slim = thicknesshc
     X_slim = None
     for ind in slim_feature:
         if X_slim is not None:

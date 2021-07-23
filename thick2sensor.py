@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from utils.my_mse_loss import my_mse_loss3
 from utils.my_mse_loss import my_mse_loss2
+from utils.my_mse_loss import my_mse_loss_clean_cycle
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 from model1 import MLP
 import torch.nn as nn
@@ -17,7 +18,10 @@ import torch.nn as nn
 
 def compute_loss(t, y, n):
     return my_mse_loss2()(y, t, n)
-    # return nn.MSELoss()(y, t)
+
+
+def compute_loss_clean_cycle(t, y):
+    return my_mse_loss_clean_cycle()(y, t)
 
 
 def compute_loss1(t, y):
@@ -35,7 +39,7 @@ def plot_loss(loss):
 
 
 def show_y_pred(inds, y, gt_y=None, epo=None, flag='train'):
-    colors = ['darkgray', 'darkgreen', 'cornflowerblue', 'pink', 'black', ]
+    colors = ['darkgray', 'darkgreen', 'cornflowerblue', 'pink', 'black']
     n, dims = y.shape
     plt.title('{} epoch {}'.format(flag, epo + 1))
     plt.xlabel("iter")
@@ -106,7 +110,11 @@ def show_all_data(X, data):
 # flag = 1 拟合model1
 # flag = 0 微调阶段
 # flag = 2 拆分洗数据
-flag = 3
+
+
+# data_clean_cycle
+# flag = 23
+flag = 24
 
 if flag == 1:
     data = json.load(open(r'./thick10_sensor16.json', 'r'))
@@ -270,7 +278,6 @@ elif flag == 2:
                     loss, minloss_index = compute_loss(pred, label, ns[i])
                     score = pred.detach().numpy()
                     show_y_pred(minloss_index, score, gt_y=label, epo=epoch, flag='train')
-                    # 落盘这洗干净的100个样本
                     f = open(r'./part{}.txt'.format(i), 'w')
                     for ind in minloss_index:
                         f.write(str(ind) + ',')
@@ -322,7 +329,7 @@ elif flag == 0:
                 np.save(r'./start_y.npy', label.detach().numpy())
             data = Variable(data, requires_grad=True)
             optimizer = optimizers.Adam({data},
-                                        lr=0.2,
+                                        lr=0.1,
                                         betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)
             # optimizer = torch.optim.SGD([data], lr=0.0001)
             optimizer.zero_grad()
@@ -404,3 +411,133 @@ elif flag == 3:
         # print('-' * 10, 'loss: {}'.format(train_loss), '-' * 10)
     plot_loss(loss_list)
 
+
+
+
+if flag == 23:
+    data = json.load(open(r'D:\work\project\卡尔蔡司AR镀膜\第三批\0705\thick14hc3sensor64_lab.json', 'r'))
+    X = []
+    Y = []
+    part_clean = open(r'./part_clean_number.txt', 'r').readlines()[0]
+    part_clean_number = part_clean.split(',')[:-1]
+    for number, f26_lab in data.items():
+        if number in part_clean_number:
+            X.append([float(i) for i in f26_lab[0].split(',')[:10]])
+            Y.append([float(i) for i in f26_lab[0].split(',')[10:-1]])
+    X = np.array(X)
+    Y = np.array(Y)
+    print(X.shape, Y.shape)
+
+    scale = StandardScaler(with_mean=True, with_std=True)
+    X = scale.fit_transform(X)
+    train_x, test_x, train_y, test_y = train_test_split(X, Y, test_size=0.28, random_state=4)
+    print("train size: {}".format(train_x.shape[0]))
+    print("validation size: {}".format(test_x.shape[0]))
+
+    batch_size = X.shape[0]
+    input_dim = X.shape[1]
+    hiden_dim = 20
+    output_dim = Y.shape[1]
+    epochs = 1000
+    step2_epochs = 400
+    model = MLP(input_dim, hiden_dim, output_dim).to(device)
+    print(model)
+    train_dataloader = DataLoader((train_x, train_y), batch_size=batch_size, batch_first=False, device=device)
+    validation_dataloader = DataLoader((test_x, test_y), batch_size=batch_size, batch_first=False, device=device)
+    all_dataloader = DataLoader((X, Y), batch_size=batch_size, batch_first=False, device=device)
+    optimizer = optimizers.Adam(model.parameters(),
+                                lr=0.001,
+                                betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-4)
+
+    loss_list = []
+    for epoch in range(epochs):
+        train_loss = 0
+        for ii, (data, label) in enumerate(all_dataloader):
+            input = Variable(data, requires_grad=False)
+            target = Variable(label)
+            optimizer.zero_grad()
+            score = model(input)
+            loss = compute_loss_clean_cycle(score, target)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+        train_loss /= len(all_dataloader)
+        loss_list.append(train_loss)
+        if (epoch + 1) % 500 == 0:
+            for (data, label) in validation_dataloader:
+                model.eval()
+                pred = model(data)
+                loss = compute_loss_clean_cycle(pred, label)
+                score = pred.detach().numpy()
+                print("validation loss: {}".format(loss))
+                show_y_pred1(score, gt_y=label, epo=epoch, flag='validation')
+        if epoch == epochs - 1:
+            for (data, label) in all_dataloader:
+                model.eval()
+                pred = model(data)
+                loss = compute_loss_clean_cycle(pred, label)
+                score = pred.detach().numpy()
+                show_y_pred1(score, gt_y=label, epo=epoch, flag='train')
+
+    torch.save(model.state_dict(), "./thickhc2sensor1.pth")
+    plot_loss(loss_list)
+
+
+elif flag == 24:
+    epochs = 1000
+    data = json.load(open(r'D:\work\project\卡尔蔡司AR镀膜\第三批\0705\thick14hc3sensor64_lab.json', 'r'))
+    X = []
+    Y = []
+    part_clean = open(r'./part_clean_number.txt', 'r').readlines()[0]
+    part_clean_number = part_clean.split(',')[:-1]
+    for number, f26_lab in data.items():
+        if number in part_clean_number:
+            X.append([float(i) for i in f26_lab[0].split(',')[:10]])
+            Y.append([float(i) for i in f26_lab[0].split(',')[10:-1]])
+    for y in Y:
+        y[2] *= 1.004
+        y[7] *= 1.008
+    X = np.array(X)
+    # 只微调一个样本, 实验可更直观.
+    Y = [Y[0]]
+    Y = np.array(Y)
+    model = MLP(10, 20, 16).to(device)
+    model.load_state_dict(torch.load(r'./thickhc2sensor1.pth'))
+    scale = StandardScaler(with_mean=True, with_std=True)
+    X = scale.fit_transform(X)
+    all_data = DataLoader((X, Y), batch_size=X.shape[0], batch_first=False, device=device)
+    for index, p in enumerate(model.parameters()):
+        p.requires_grad = False
+    loss_list = []
+    for epoch in range(epochs):
+        train_loss = 0
+        for ii, (data, label) in enumerate(all_data):
+            if epoch == 0:
+                inverse_data = scale.inverse_transform(data.detach().numpy())
+                np.save(r'./start_thick.npy', inverse_data)
+                np.save(r'./start_y.npy', label.detach().numpy())
+            data = Variable(data, requires_grad=True)
+            optimizer = optimizers.Adam({data},
+                                        lr=0.05,
+                                        betas=(0.9, 0.999), amsgrad=True, weight_decay=1e-5)
+            # optimizer = torch.optim.SGD([data], lr=0.0001)
+            optimizer.zero_grad()
+            score = model(data)
+            loss = compute_loss1(score, label)
+            loss.backward()
+            # print(data.grad[0]*0.1)
+            optimizer.step()
+            train_loss += loss.item()
+            if (epoch + 1) % 200 == 0:
+                score = model(data).detach().numpy()
+                show_y_pred1(score, gt_y=label, epo=epoch, flag='train')
+            if epoch == epochs - 1:
+                inverse_data = scale.inverse_transform(data.detach().numpy())
+                np.save(r'./end_thickhc.npy', inverse_data)
+                np.save(r'./end_y.npy', label.detach().numpy())
+        train_loss /= len(all_data)
+        loss_list.append(train_loss)
+        inverse_data = scale.inverse_transform(data.detach().numpy())
+        print("epoch: {}, thickness: {}".format(epoch, inverse_data))
+        # print('-' * 10, 'loss: {}'.format(train_loss), '-' * 10)
+    plot_loss(loss_list)
