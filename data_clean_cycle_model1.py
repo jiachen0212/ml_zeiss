@@ -177,7 +177,7 @@ def run_test(scale, mlp_pth, X, Y, hiden_dim, output_dim, epochs):
             if epoch == 0:
                 x_data = scale.inverse_transform(data.detach().numpy())
                 np.save(r'./start_x.npy', x_data)
-                np.save(r'./start_lab.npy', label)
+                np.save(r'./start_labnumber.npy', label)
             data = Variable(data, requires_grad=True)
             optimizer = optimizers.Adam({data},
                                         lr=1,
@@ -199,7 +199,7 @@ def run_test(scale, mlp_pth, X, Y, hiden_dim, output_dim, epochs):
                 preds = model(data)
                 x_data = scale.inverse_transform(data.detach().numpy())
                 np.save(r'./modified_x.npy', x_data)
-                np.save(r'./modified_lab.npy', label)
+                np.save(r'./modified_labnumber.npy', label)
         train_loss /= len(all_data)
         loss_list.append(train_loss)
 
