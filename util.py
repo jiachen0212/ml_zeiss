@@ -278,10 +278,6 @@ def Select_feature(X, Y, k=10):
 
     print("特征筛选后的特征维度: {}".format(len(slim_feature)))
 
-    # 手动选择所有的std特征
-    # slim_feature = [1+i*2 for i in range(16)]
-    # print(slim_feature)
-
     for y in res_x:
         single_y = []
         for ind in slim_feature:
@@ -320,48 +316,12 @@ def weighted_mse(lab):
             3.33, 3.58, 3.87, 3.97, 4.34, 4.57, 4.73, 5.03, 5.45, 5.94]
     # a = [380, 405, 440, 640, 750, 780]
     # b = [400, 410, 435, 445, 635, 645, 745, 755]
-    # x = [380 + i * 5 for i in range(81)]
-    # w = [1] * 81
-    # for r in a:
-    #     w[x.index(r)] = 2
-    # for k in b:
-    #     w[x.index(k)] = 1.5
-    # res = [(lab[i] - best[i]) ** 2 * w[i] for i in range(81)]
+
+    # 仅对750处的反射率进行了w=2加权
     w = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1,
 1, 1, 1, 1]
     res = [(lab[i] - best[i]) ** 2 * w[i] for i in range(81)]
 
     return np.mean(res)
-
-
-if __name__ == "__main__":
-    all_data = json.load(open(r'D:\work\project\卡尔蔡司AR镀膜\第三批\0705\thick14hc3sensor64_lab_第四层.json', 'r'))
-    f = json.load(open(r'./large_ng.json', 'r'))
-    selected_f = open(r'./Select_feature.txt', 'r').readlines()[0]
-    seleted = [int(i) for i in selected_f.split(',')[:-1]]
-    large_ng = dict()
-    nums = list(f.keys())
-    for num, v in all_data.items():
-        if num in nums:
-            large_ng[num] = v
-    large_ng_lab = dict()
-    f_seleted_33 = dict()
-    for num, f_lab in large_ng.items():
-        f = []
-        f32 = f_lab[0].split(',')[10:-1]
-        assert len(f32) == 16
-        for ind in seleted:
-            f.append(f32[ind])
-        f_str = ''.join(i+',' for i in f)
-        large_ng_lab[f_str] = f_lab[1]
-        f_seleted_33[f_str] = num
-
-    data = json.dumps(large_ng_lab)
-    with open('./f16lab.json', 'w') as js_file:
-        js_file.write(data)
-
-    data = json.dumps(f_seleted_33)
-    with open('./f1633.json', 'w') as js_file:
-        js_file.write(data)
 
 

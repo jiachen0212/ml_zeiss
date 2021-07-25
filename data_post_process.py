@@ -1,7 +1,11 @@
 # coding=utf-8
+'''
+    edited by chen-jia 2021.0625
+
+'''
+
 import json
 import os
-import random
 import shutil
 import copy
 import numpy as np
@@ -9,13 +13,7 @@ import pandas as pd
 import tsfresh as tsf
 import xlrd
 
-from check_data import rate_thickness_check
 from read_csvs import get8step_sensor_feature
-
-'''
-    edited by chen-jia 2021.0625    
-
-'''
 
 
 class data_post_process():
@@ -24,12 +22,12 @@ class data_post_process():
 
     '''
 
-    def __init__(self, evt33, membrane, process_data, base_data_dir, CC_dir, CX_dir, thick14_hc3_sensor16_lab_js,
-                 thick10_sensor8step_lab_js, number33_thicklab_js, flag=0):
+    def __init__(self, evt33, membrane, process_data, base_data_dir, CC_dir, CX_dir,
+                 thick10_sensor8step_lab_js, number33_thicklab_js, evt_pair, num_evt12, csv_dict_js):
         '''
         :param MachineName-kinds:   ['1.56_DVS_CC', '1.56_DVS_CX', '1.6&1.67_DVS_CC', '1.6&1.67_DVS_CC_hpkf', '1.6&1.67_DVS_CX', '1.6&1.67_DVS_CX_hpkf', '1.6_DVSUN_CC']
 
-        :param n_thick: 镜片镀膜层数, 7,5,4 等不等。模型训练时,需保证数据都是同种层数的镀膜数
+        :param n_thickness: 镜片镀膜层数, 7,5,4 等不等。模型训练时,需保证数据都是同种层数的镀膜数
 
         :param evt33:  33#膜色文件与EVT文件对应表.xlsx
                        note： 可将 33121052204 编号 和 EVT21050506 对应上
@@ -42,24 +40,22 @@ class data_post_process():
 
         self.base_data_dir = base_data_dir
         self.n_thickness = 7
-        self.index = 1
+        self.index = 4
         self.evt33 = evt33
         self.membrane = membrane
         self.evt_dict = dict()
         self.process_data = process_data
         self.CC_dir = CC_dir
         self.CX_dir = CX_dir
-        self.thick14_hc3_sensor16_lab_js = thick14_hc3_sensor16_lab_js
         self.thick10_sensor8step_lab_js = thick10_sensor8step_lab_js
-
-        self.evt_pair = r'./正背面_thickness_evtname.txt'
         self.number33_thicklab_js = number33_thicklab_js
+
+        self.evt_pair = evt_pair
         self.face = r'背面'
-        self.number33_thick14hc3lab_js = r'./number33_thickhc.json'
-        self.num_evt12 = r'./num_evt12.json'
         self.sen_list = ['ACT_O1_QCMS_THICKNESS_CH1']
-        # self.sen_list = ['STAT_LT_CRYSTAL_CH1']
-        self.csv_dict_js = r'./evtname_sensor_name_value.json'
+        self.num_evt12 = num_evt12
+
+        self.csv_dict_js = csv_dict_js
 
 
     def run(self, ):
@@ -75,7 +71,9 @@ class data_post_process():
         number33_thick10lab(self.membrane, self.evt_pair, self.number33_thicklab_js, self.num_evt12, ind=self.index)
         
         # # step3. 添加8个step的sensor特征
+        add_sensor_feature(self.base_data_dir, self.num_evt12)
         get8step_sensor_feature(self.n_thickness, self.num_evt12, self.base_data_dir, self.csv_dict_js, self.number33_thicklab_js, self.thick10_sensor8step_lab_js, self.sen_list)
+
 
     def clean_data_machineid(self, ):
         '''
@@ -444,9 +442,7 @@ def sensor_csv_feature(sen_list, data):
     return f_sensor
 
 
-def add_sensor_feature(base_data_dir, num_evt12, number33_thick14hc3lab_js, sen_list, thick14_hc3_sensor16_lab_js):
-    num_thickhclab = json.load(open(number33_thick14hc3lab_js, 'r'))
-    thick14_hc3_sensor16_lab = copy.deepcopy(num_thickhclab)
+def add_sensor_feature(base_data_dir, num_evt12):
     num_evt12 = json.load(open(num_evt12, 'r'))
     exists_sensor_csv = open(r'./sensor_csv.txt', 'w')
     for num, evt12 in num_evt12.items():
@@ -455,30 +451,6 @@ def add_sensor_feature(base_data_dir, num_evt12, number33_thick14hc3lab_js, sen_
         for path in [path1, path2]:
             if os.path.exists(path):
                 exists_sensor_csv.write(path.split('\\')[-1] + ',')
-        if not os.path.exists(path1) and not os.path.exists(path2):
-            continue
-        elif os.path.exists(path1) and not os.path.exists(path2):
-            path2 = path1
-        elif not os.path.exists(path1) and os.path.exists(path2):
-            path1 = path2
-        data1 = pd.read_csv(path1, error_bad_lines=False)
-        data2 = pd.read_csv(path2, error_bad_lines=False)
-        sensor16_1 = sensor_csv_feature(sen_list, data1)
-        sensor16_2 = sensor_csv_feature(sen_list, data2)
-        sensor16 = [(sensor16_1[i] + sensor16_2[i]) / 2 for i in range(len(sensor16_1))]
-        sensor16_f = ''.join(str(i)+',' for i in sensor16)
-        try:
-            pre_f = num_thickhclab[num][0]
-        except:
-            continue
-        thick14hc3sensor16 = pre_f + sensor16_f
-        assert len(thick14hc3sensor16.split(',')) == 34
-        thick14_hc3_sensor16_lab[num][0] = thick14hc3sensor16
-    print("膜厚耗材snesor16 数据量: {}".format(len(thick14_hc3_sensor16_lab)))
-
-    data = json.dumps(thick14_hc3_sensor16_lab)
-    with open(thick14_hc3_sensor16_lab_js, 'w') as js_file:
-        js_file.write(data)
 
 
 def usful_sensor_feature(sensor_csv):

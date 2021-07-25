@@ -1,8 +1,11 @@
 # coding=utf-8
+'''
+    edited by chen-jia 2021.0722
+
+'''
+
 import os
 import xlrd
-
-
 
 clean_data_dir = r'D:\work\project\卡尔蔡司AR镀膜\大清洗'
 fs = os.listdir(clean_data_dir)
@@ -80,7 +83,7 @@ print('\n')
 
 part_evts = []
 for time, evt in time_evt.items():
-    if time.split('/')[-1] == '2021' and time.split('/')[0] == '2' and 5 <= int(time.split('/')[1]) <= 13:
+    if time.split('/')[-1] == '2021' and time.split('/')[0] == '5' and 5 <= int(time.split('/')[1]) <= 12:
         part_evts.extend(evt)
 
     # for test: 12个周期的模型好了后, 用4月底的这批数据来选中一个最接近的子model

@@ -39,7 +39,7 @@ class DataLoader(object):
 
         x, t = zip(*self.dataset[self._idx:(self._idx + self.batch_size)])
 
-        x = torch.Tensor(x).T  # 长sequence时候用LongTensor #tf用tf.convert_to_tensor(x, dtype=tf.float32)
+        x = torch.Tensor(x).T
         t = torch.Tensor(t).T
 
         if not self.batch_first:
