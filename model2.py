@@ -181,6 +181,13 @@ def run_train(X, Y, input_dim, hiden_dim, output_dim, epochs):
                 pred = model(input)
                 y_pred = pred.detach().numpy()
                 show_y_pred(y_pred, gt, epo=epoch, flag='validation')
+        if epoch == epochs - 1:
+            model.eval()
+            for ii, (input, org) in enumerate(train_dataloader):
+                model.eval()
+                pred = model(input)
+                y = pred.detach().numpy()
+                show_y_pred(y, org, epo=epoch, flag='train')
     plot_loss(loss_list)
     torch.save(model.state_dict(), "./model2.pth")
 
@@ -281,7 +288,7 @@ if __name__ == "__main__":
     epochs_train = 5000
     epochs_test = 1000
 
-    flag = 0
+    flag = 1
 
     X, Y = generate_data(file1, file2, process_data, base_data_dir, CC_dir, CX_dir, number33_thick10sensor8step_lab_js,
                          number33_thicklab_js, evt_pair, num_evt12, csv_dict_js, flag)
