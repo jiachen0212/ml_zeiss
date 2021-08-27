@@ -1,6 +1,7 @@
 # coding=utf-8
-from math import fabs, copysign
 import json
+from math import fabs, copysign
+
 import numpy as np
 import xlrd
 from sklearn.feature_selection import SelectKBest
@@ -171,12 +172,13 @@ def fun2(x, y, s, r):
 
 def fun3(Xxn):
     if Xxn > 0.008856:
+        print('1')
         fXxn = copysign(fabs(Xxn) ** (1 / 3), Xxn)
     else:
+        print('2')
         fXxn = 7.787 * Xxn + 16 / 116
 
     return fXxn
-
 
 
 def weights(X, Y, Z, S, Xn, Yn, Zn):
@@ -185,16 +187,20 @@ def weights(X, Y, Z, S, Xn, Yn, Zn):
     所以暂时不针对乘积权值加权lab曲线的loss。
 
     '''
-    w1 = [X[i]*S[i] / Xn for i in range(81)]
-    w2 = [Y[i]*S[i] / Yn for i in range(81)]
-    w3 = [Z[i]*S[i] / Zn for i in range(81)]
+    w1 = [X[i] * S[i] / Xn for i in range(81)]
+    w2 = [Y[i] * S[i] / Yn for i in range(81)]
+    w3 = [Z[i] * S[i] / Zn for i in range(81)]
     # print(w1.index(min(w1)), w1.index(max(w1)))
     # print(w2.index(min(w2)), w2.index(max(w2)))
     # print(w3.index(min(w3)), w3.index(max(w3)))
 
 
 def calculate_Lab(best):
-    S = [33.0, 39.92, 47.4, 55.17, 63.3, 71.81, 80.6, 89.53, 98.1, 105.8, 112.4, 117.75, 121.5, 123.45, 124.0, 123.6, 123.1,123.3, 123.8, 124.09, 123.9, 122.92, 120.7, 116.9, 112.1, 106.98, 102.3, 98.81, 96.9, 96.78, 98.0, 99.94, 102.1,103.95, 105.2, 105.67, 105.3, 104.11, 102.3, 100.15, 97.8, 95.43, 93.2, 91.22, 89.7, 88.83, 88.4, 88.19, 88.1,88.06, 88.0, 87.86, 87.8, 87.99, 88.2, 88.2, 87.9, 87.22, 86.3, 85.3, 84.0, 82.21, 80.2, 78.24, 76.3, 74.36, 72.4,70.4, 68.3, 66.3, 64.4, 62.8, 61.5, 60.2, 59.2, 58.5, 58.1, 58.0, 58.2, 58.5, 59.1]
+    S = [33.0, 39.92, 47.4, 55.17, 63.3, 71.81, 80.6, 89.53, 98.1, 105.8, 112.4, 117.75, 121.5, 123.45, 124.0, 123.6,
+         123.1, 123.3, 123.8, 124.09, 123.9, 122.92, 120.7, 116.9, 112.1, 106.98, 102.3, 98.81, 96.9, 96.78, 98.0,
+         99.94, 102.1, 103.95, 105.2, 105.67, 105.3, 104.11, 102.3, 100.15, 97.8, 95.43, 93.2, 91.22, 89.7, 88.83, 88.4,
+         88.19, 88.1, 88.06, 88.0, 87.86, 87.8, 87.99, 88.2, 88.2, 87.9, 87.22, 86.3, 85.3, 84.0, 82.21, 80.2, 78.24,
+         76.3, 74.36, 72.4, 70.4, 68.3, 66.3, 64.4, 62.8, 61.5, 60.2, 59.2, 58.5, 58.1, 58.0, 58.2, 58.5, 59.1]
     XYZ_fun = r'D:\work\project\卡尔蔡司AR镀膜\文档s\蔡司资料0615\Lab计算及膜厚范围.xlsx'
     wb = xlrd.open_workbook(XYZ_fun)
     data = wb.sheet_by_name(r'色分配函数')
@@ -221,7 +227,7 @@ def calculate_Lab(best):
     a = 500 * (fXxn - fYyn)
     b = 200 * (fYyn - fZzn)
     # print("Lab value: L: {}, a: {}, b: {}".format(L, a, b))
-    return L, a, b
+    return [L, a, b]
 
 
 def top_k_feature(remed, Y, X, all, n):
@@ -232,7 +238,10 @@ def top_k_feature(remed, Y, X, all, n):
     for i in b:
         all.append(a.index(i))
 
+
 import collections
+
+
 def Select_feature(X, Y, k=10):
     '''
     :param X: list
@@ -262,7 +271,7 @@ def Select_feature(X, Y, k=10):
     print(collections.Counter(all))
     slim_feature = list(set(all))
     print(slim_feature)
-    slim_feature = [i for i in slim_feature if i not in [2,7,10,15]]
+    slim_feature = [i for i in slim_feature if i not in [2, 7, 10, 15]]
 
     # 需要的话,删除第2 7 层和std特征
     # slim_feature = [i for i in slim_feature if i%2 == 0]
@@ -274,13 +283,9 @@ def Select_feature(X, Y, k=10):
     print(slim_feature)
     f = open(r'./Select_feature.txt', 'w')
     for a in slim_feature:
-        f.write(str(a)+',')
+        f.write(str(a) + ',')
 
     print("特征筛选后的特征维度: {}".format(len(slim_feature)))
-
-    # 手动选择所有的std特征
-    # slim_feature = [1+i*2 for i in range(16)]
-    # print(slim_feature)
 
     for y in res_x:
         single_y = []
@@ -290,7 +295,7 @@ def Select_feature(X, Y, k=10):
 
     thick10_sensor8stepfeature = dict()
     for i in range(len(model1_x)):
-        key = ''.join(str(a)+',' for a in model1_x[i])
+        key = ''.join(str(a) + ',' for a in model1_x[i])
         # 加一个索引数值, 避免key重复value被覆盖更新.
         key += str(i)
         thick10_sensor8stepfeature[key] = model1_y[i]
@@ -320,48 +325,24 @@ def weighted_mse(lab):
             3.33, 3.58, 3.87, 3.97, 4.34, 4.57, 4.73, 5.03, 5.45, 5.94]
     # a = [380, 405, 440, 640, 750, 780]
     # b = [400, 410, 435, 445, 635, 645, 745, 755]
-    # x = [380 + i * 5 for i in range(81)]
-    # w = [1] * 81
-    # for r in a:
-    #     w[x.index(r)] = 2
-    # for k in b:
-    #     w[x.index(k)] = 1.5
-    # res = [(lab[i] - best[i]) ** 2 * w[i] for i in range(81)]
-    w = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1,
-1, 1, 1, 1]
+
+    # 仅对750处的反射率进行了w=2加权
+    w = [1] * 81
+    # w[74] = 2
     res = [(lab[i] - best[i]) ** 2 * w[i] for i in range(81)]
 
     return np.mean(res)
 
 
-if __name__ == "__main__":
-    all_data = json.load(open(r'D:\work\project\卡尔蔡司AR镀膜\第三批\0705\thick14hc3sensor64_lab_第四层.json', 'r'))
-    f = json.load(open(r'./large_ng.json', 'r'))
-    selected_f = open(r'./Select_feature.txt', 'r').readlines()[0]
-    seleted = [int(i) for i in selected_f.split(',')[:-1]]
-    large_ng = dict()
-    nums = list(f.keys())
-    for num, v in all_data.items():
-        if num in nums:
-            large_ng[num] = v
-    large_ng_lab = dict()
-    f_seleted_33 = dict()
-    for num, f_lab in large_ng.items():
-        f = []
-        f32 = f_lab[0].split(',')[10:-1]
-        assert len(f32) == 16
-        for ind in seleted:
-            f.append(f32[ind])
-        f_str = ''.join(i+',' for i in f)
-        large_ng_lab[f_str] = f_lab[1]
-        f_seleted_33[f_str] = num
 
-    data = json.dumps(large_ng_lab)
-    with open('./f16lab.json', 'w') as js_file:
-        js_file.write(data)
-
-    data = json.dumps(f_seleted_33)
-    with open('./f1633.json', 'w') as js_file:
-        js_file.write(data)
-
-
+# f = r'D:\work\project\卡尔蔡司AR镀膜\第三批\0705\thick14hc3sensor64_lab.json'
+# tmp_ = dict()
+# ff = json.load(open(f, 'r'))
+# for k, v in ff.items():
+#     if k == '33321020305':
+#         v_ = [''.join(str(i) for i in v[0]), v[1]]
+#         tmp_[k] = v
+#
+# data = json.dumps(tmp_)
+# with open(r'D:\work\project\卡尔蔡司AR镀膜\0731data\finally.json', 'w') as js_file:
+#     js_file.write(data)
