@@ -2,6 +2,7 @@
 import pandas as pd
 from numpy import array
 import numpy as np
+import keras
 from keras.models import Sequential
 from keras.layers import LSTM
 from keras.layers import Dense
@@ -9,6 +10,8 @@ from keras.layers import RepeatVector
 from keras.layers import TimeDistributed
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
+from keras.callbacks import TensorBoard, EarlyStopping
+from sklearn.model_selection import train_test_split as TTS
 import math
 from keras import backend as K
 
@@ -53,26 +56,18 @@ print(yhat)
 
 '''
 
-def build_model(embedd_ed_dim, epochs):
+def build_model(embedd_ed_dim, sqe_len):
     # define model
     model = Sequential()
-    model.add(LSTM(embedd_ed_dim, activation='relu', input_shape=(n_in, 1)))
-    model.add(RepeatVector(n_in))
+    # batch_size, sqe_len, 1
+    model.add(LSTM(embedd_ed_dim, activation='relu', input_shape=(sqe_len, 1)))
+    model.add(RepeatVector(sqe_len))
     model.add(LSTM(embedd_ed_dim, activation='relu', return_sequences=True))
     model.add(TimeDistributed(Dense(1)))
     # 打印网络信息
     # model.summary()
 
-    model.compile(optimizer='adam', loss='mse')
-    # fit model
-    model.fit(sequence, sequence, epochs=epochs, verbose=0)
-
-    # 获取lstm 的 encoder 结果
-    get_3rd_layer_output = K.function([model.layers[0].input],
-                                      [model.layers[0].output])
-    layer_output = get_3rd_layer_output([np.array([X[0]])])[0][0]  # len==8的list
-
-    return model, layer_output
+    return model
 
 
 def get_step_index(thick_col):
@@ -125,15 +120,31 @@ def sampling_for_each_sensor_col(data1, j, col_name):
     return sampled_sensor_col
 
 
+def bad_Ovens(datas):
+    bads = []
+    for data in datas:
+        ll = len(data)
+        for i in range(ll-1):
+            OvenNo = data.iloc[i]['OvenNo']
+            path = data.iloc[i]['path_sensor_data']
+            try:
+                sensor_data = pd.read_csv(path)
+                bads.append(OvenNo)
+            except:
+                continue
+    return bads
+
 def generate_data(col_name, datas, std_mean_txt):
     ff = open(std_mean_txt, 'w')
     X = []
+    bads = bad_Ovens(datas)
     for data in datas:
         ll = len(data)
         for i in range(ll):
-            test_data = sampling_for_each_sensor_col(data, i, col_name)
-            if len(test_data) != 0:
-                X.append(test_data)
+            if data.iloc[i]['OvenNo'] in bads:
+                test_data = sampling_for_each_sensor_col(data, i, col_name)
+                if len(test_data) != 0:
+                    X.append(test_data)
     # data normalization
     x_mean = np.mean(X, axis=0)
     x_std = np.std(X, axis=0)
@@ -156,6 +167,16 @@ def generate_data(col_name, datas, std_mean_txt):
 # test_data = [97+random.random() for i in range(77)]
 # 训出nan结果, 跟序列长度有关系.. 长度>35貌似就不行了...
 
+class MyCallback(keras.callbacks.Callback):
+    def on_train_begin(self, logs={}):
+        self.losses = []
+        return
+
+    def on_batch_end(self, batch, logs={}):
+        self.losses.append(logs.get('loss'))
+        return
+
+
 if __name__ == '__main__':
 
     data1 = r'./0910_cx_data.csv'
@@ -167,19 +188,32 @@ if __name__ == '__main__':
     std_mean_txt = './{}_mean_std.txt'.format(col_name)
 
     X = generate_data(col_name, datas, std_mean_txt)
-    print(X.shape)
+    data_size, sqe_len = X.shape[0], X.shape[1]
+    X_ = X.reshape((data_size, sqe_len, -1))
+    print(X_.shape)
 
-    # define input sequence
-    sequence = array(X[0])
-    # reshape input into [samples, timesteps, features]
-    n_in = len(sequence)
-    sequence = sequence.reshape((1, n_in, 1))
+    X_train, X_test, y_train, y_test = TTS(X_, X_, test_size=0.2, random_state=33)
 
     # 搭建 model
     embedd_ed_dim = 8
-    epochs = 300
-    model, embedd_ed_res = build_model(embedd_ed_dim, epochs)
+    epochs = 200
+    model = build_model(embedd_ed_dim, sqe_len)
+    cb = MyCallback()
 
-    # demonstrate recreation
-    yhat = model.predict(sequence, verbose=0)
+    model.compile(optimizer='adam', loss='mse')
+    # fit model
+    model.fit(X_train, y_train, epochs=epochs, batch_size=16,
+              validation_data=(X_test, y_test), shuffle=True,
+              callbacks=[cb], verbose=0)
+
+    # test data eval
+    test_res = model.predict(X_test)   # batch 76, 1
+    print("test data mes: {}".format(mean_squared_error(np.squeeze(test_res), np.squeeze(y_test))))
+
+    # model.fit() 训好后, 获取lstm 的 encoder 结果
+    get_3rd_layer_output = K.function([model.layers[0].input],
+                                      [model.layers[0].output])
+    layer_output = get_3rd_layer_output([X])[0]
+    np.save('./tf_feature.npy', layer_output)
+
 
